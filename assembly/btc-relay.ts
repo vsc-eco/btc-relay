@@ -230,6 +230,7 @@ export function processHeaders(headers: Array<string>): void {
         const prevBlockLE = extractPrevBlockLE(decodeHex);
         const prevBlock = reverseEndianness(prevBlockLE);
         const timestamp = extractTimestamp(decodeHex);
+        // pla: maybe merkleRoot does not need to be reversed, come to the conclusion because the library we use for validating proofs for example takes it in the other way
         const merkleRoot = reverseEndianness(extractMerkleRootLE(decodeHex));
         const headerHash = hash256(decodeHex);
         const diff = validateHeaderChain(decodeHex);
@@ -240,15 +241,14 @@ export function processHeaders(headers: Array<string>): void {
         const prevBlockStr = Arrays.toHexString(prevBlock)
         let continueLoop: bool = true;
 
-        // DEBUG
         if (prevBlockStr === '0000000000000000000000000000000000000000000000000000000000000000') {
             prevHeight = -1;
         } else {
             if (preheaders.has(prevBlockStr)) {
                 let blockInfo = preheaders.get(prevBlockStr);
                 if (blockInfo) {
-                    prevDiff = blockInfo.totalDiff;
-                    prevHeight = blockInfo.height as i32;
+                prevDiff = blockInfo.totalDiff;
+                prevHeight = blockInfo.height as i32;
                 } else {
                     // pla: because assemblyscript doesnt support 'continue;'
                     continueLoop = false;
