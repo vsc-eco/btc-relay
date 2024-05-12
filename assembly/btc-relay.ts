@@ -2,10 +2,9 @@ import { db, Arrays, SystemAPI, Crypto, reverseEndianness } from '@vsc.eco/sdk/a
 import { JSON, JSONEncoder } from "assemblyscript-json/assembly";
 import { BigInt } from "as-bigint/assembly"
 import { calcKey, extractPrevBlockLE, getHeaders, getStringFromJSON, extractMerkleRootLE, hash256 } from './btc-relay-utils';
+import { Value } from 'assemblyscript-json/assembly/JSON';
 
 const DIFF_ONE_TARGET = BigInt.fromString('0xffff0000000000000000000000000000000000000000000000000000');
-
-const validity_depth: i32 = 2;
 
 const headersState: Map<string, Map<i64, string>> = new Map<string, Map<i64, string>>();
 
@@ -50,6 +49,30 @@ class Header {
     }
 }
 
+class InitData {
+    startHeader: string;
+    height: i32;
+    previousDifficulty: BigInt;
+
+    constructor(startHeader: string, height: i32, previousDifficulty: BigInt) {
+        this.startHeader = startHeader;
+        this.height = height;
+        this.previousDifficulty = previousDifficulty;
+    }
+}
+
+class ProcessData {
+    headers: Array<string>;
+    // pla: directs how many blocks to skip from the end of the chain, 0 no blocks are skipped
+    // default validity depth is 6 blocks, this means we skip the last 6 blocks from the end of the chain, because we cant assume that they are final yet
+    validityDepth: i32;
+
+    constructor(headers: Array<string>, validityDepth: i32 = 6) {
+        this.headers = headers;
+        this.validityDepth = validityDepth;
+    }
+}
+
 function getIntFromJSON(jsonObject: JSON.Obj, key: string): i64 {
     let extractedValue: JSON.Integer | null = jsonObject.getInteger(key);
     if (extractedValue != null) {
@@ -84,6 +107,21 @@ export function getPreheaders(): Map<string, Header> {
     }
 
     return preheaders;
+}
+
+export function parseProcessData(headerString: string): ProcessData {
+    const parsed = <JSON.Obj>JSON.parse(headerString);
+
+    const headers = parsed.getArr('headers')!.valueOf().map<string>((value: Value, index: i32, array: Value[]) => {
+        return value.toString();
+    });
+
+    let validityDepthJSON: JSON.Integer | null = parsed.getInteger('validityDepth');
+    if (validityDepthJSON != null) {
+        return new ProcessData(headers, validityDepthJSON.valueOf() as i32);
+    } else {
+        return new ProcessData(headers);
+    }
 }
 
 export function validateHeaderPrevHashLE(header: Uint8Array, prevHeaderDigest: Uint8Array): boolean {
@@ -221,7 +259,86 @@ export function sortPreheadersByTotalDiff(preheaders: Map<string, Header>): Arra
     return entries;
 }
 
-export function processHeaders(headers: Array<string>): void {
+function serializePreHeaders(preheaders: Map<string, Header>): string {
+    let encoder = new JSONEncoder();
+    encoder.pushObject(null);
+
+    let keys = preheaders.keys();
+    for (let i = 0, k = keys.length; i < k; ++i) {
+        let key = unchecked(keys[i]);
+        let value = preheaders.get(key);
+        if (value !== null) {
+            value.stringify(encoder, key);
+            encoder.popObject();
+        }
+    }
+    encoder.popObject();
+
+    return encoder.toString();
+}
+
+function serializeHeaderState(headerState: Map<i64, string>): string {
+    let encoder = new JSONEncoder();
+    encoder.pushObject(null);
+
+    let keys = headerState.keys();
+    for (let i = 0, k = keys.length; i < k; ++i) {
+        let key = unchecked(keys[i]);
+        let value = headerState.get(key);
+        if (value !== null) {
+            encoder.setString(key.toString(), value);
+        }
+    }
+    encoder.popObject();
+
+    return encoder.toString();
+}
+
+// pla: processHeaders only works when you start at block zero, with this function you can start at any arbitrary height
+export function initializeAtSpecificBlock(initDataString: string): void {
+    const parsed = <JSON.Obj>JSON.parse(initDataString);
+    const initData = new InitData(
+        getStringFromJSON(parsed, 'startHeader'),
+        getIntFromJSON(parsed, 'height') as i32,
+        BigInt.fromString(getStringFromJSON(parsed, 'previousDifficulty'))
+    );
+
+    if (db.getObject(`pre-headers/main`) === "null") {
+        const decodeHex = Arrays.fromHexString(initData.startHeader);
+        const prevBlockLE = extractPrevBlockLE(decodeHex);
+        const prevBlock = reverseEndianness(prevBlockLE);
+        const timestamp = extractTimestamp(decodeHex);
+        // pla: maybe merkleRoot does not need to be reversed, came to that conclusion because the library we use for validating proofs for example takes it in the other way
+        const merkleRoot = reverseEndianness(extractMerkleRootLE(decodeHex));
+        const headerHash = hash256(decodeHex);
+        const diff = validateHeaderChain(decodeHex);
+
+        const decodedHeader = new Header(
+            prevBlock,
+            new Date(timestamp * 1000).toISOString(),
+            merkleRoot,
+            diff,
+            diff.add(initData.previousDifficulty),
+            initData.height,
+            initData.startHeader
+        );
+
+        const preheaders: Map<string, Header> = new Map<string, Header>();
+        preheaders.set(Arrays.toHexString(reverseEndianness(headerHash)), decodedHeader);
+        db.setObject(`pre-headers/main`, serializePreHeaders(preheaders));
+
+        let key = calcKey(decodedHeader.height);
+        let stateForKey = new Map<i64, string>();
+        stateForKey.set(decodedHeader.height, initData.startHeader);
+        headersState.set(key, stateForKey);
+
+        db.setObject(`headers/${key}`, serializeHeaderState(stateForKey));
+    }
+}
+
+export function processHeaders(processDataString: string): void {
+    const processData = parseProcessData(processDataString);
+    const headers: Array<string> = processData.headers;
     const preheaders = getPreheaders();
 
     for (let i = 0; i < headers.length; ++i) {
@@ -247,8 +364,8 @@ export function processHeaders(headers: Array<string>): void {
             if (preheaders.has(prevBlockStr)) {
                 let blockInfo = preheaders.get(prevBlockStr);
                 if (blockInfo) {
-                prevDiff = blockInfo.totalDiff;
-                prevHeight = blockInfo.height as i32;
+                    prevDiff = blockInfo.totalDiff;
+                    prevHeight = blockInfo.height as i32;
                 } else {
                     // pla: because assemblyscript doesnt support 'continue;'
                     continueLoop = false;
@@ -290,10 +407,10 @@ export function processHeaders(headers: Array<string>): void {
         if (preheaders.has(prevBlockStr)) {
             let currentHeader = preheaders.get(prevBlockStr);
 
-            // pla: skipping first x blocks below validity_depth
-            if (curDepth > validity_depth) {
+            // pla: skipping last x blocks below validity_depth
+            if (curDepth >= processData.validityDepth) {
                 blocksToPush.push(currentHeader);
-            } else {                
+            } else {
                 curDepth = curDepth + 1;
             }
             prevBlock = currentHeader.prevBlock;
@@ -345,56 +462,6 @@ export function processHeaders(headers: Array<string>): void {
         }
     }
 
-    // pla: TMP - LOG ALL PREHEADERS
-    // let encoder = new JSONEncoder();
-    // for (let i = 0, k = preheaders.keys().length; i < k; ++i) {
-    //     let key = unchecked(preHeaderKeys[i]);
-    //     if (preheaders.has(key)) {
-    //         let val = preheaders.get(key);
-    //         if (val !== null) {
-    //             val.stringify(encoder, key);
-    //             encoder.popObject();
-    //         }
-    //     }
-    // }
-    // encoder.popObject();
-    // console.log(encoder.toString())
-    // TMP
-
     db.setObject(`pre-headers/main`, serializePreHeaders(preheaders));
 }
 
-function serializePreHeaders(preheaders: Map<string, Header>): string {
-    let encoder = new JSONEncoder();
-    encoder.pushObject(null);
-
-    let keys = preheaders.keys();
-    for (let i = 0, k = keys.length; i < k; ++i) {
-        let key = unchecked(keys[i]);
-        let value = preheaders.get(key);
-        if (value !== null) {
-            value.stringify(encoder, key);
-            encoder.popObject();
-        }
-    }
-    encoder.popObject();
-
-    return encoder.toString();
-}
-
-function serializeHeaderState(headerState: Map<i64, string>): string {
-    let encoder = new JSONEncoder();
-    encoder.pushObject(null);
-
-    let keys = headerState.keys();
-    for (let i = 0, k = keys.length; i < k; ++i) {
-        let key = unchecked(keys[i]);
-        let value = headerState.get(key);
-        if (value !== null) {
-            encoder.setString(key.toString(), value);
-        }
-    }
-    encoder.popObject();
-
-    return encoder.toString();
-}

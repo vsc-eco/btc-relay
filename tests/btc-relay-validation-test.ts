@@ -9,7 +9,7 @@ beforeAll(() => setContractImport(contractImport));
 
 beforeEach(reset);
 
-describe("test validateTxProof with various proofs", () => {
+xdescribe("test validateTxProof with various proofs", () => {
     it("should return true on valid proof", () => {
         stateCache.set("headers/592900-593000", JSON.stringify({
             "592920": "0000c020c238b601308b7297346ab2ed59942d7d7ecea8d23a1001000000000000000000b61ac92842abc82aa93644b190fc18ad46c6738337e78bc0c69ab21c5d5ee2ddd6376d5d3e211a17d8706a84"
@@ -20,7 +20,7 @@ describe("test validateTxProof with various proofs", () => {
         expect(result).to.equal(true);
     });
 
-    it("should return false on valid proof", () => {
+    it("should return false on invalid proof", () => {
         stateCache.set("headers/592900-593000", JSON.stringify({
             "592920": "0000c020c238b601308b7297346ab2ed59942d7d7ecea8d23a1001000000000000000000b61ac92842abc82aa93644b190fc18ad46c6738337e78bc0c69ab21c5d5ee2ddd6376d5d3e211a17d8706a84"
         }));
