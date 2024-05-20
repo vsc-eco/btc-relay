@@ -1,6 +1,7 @@
 import { firstTenBTCBlocks, headers0to100, headers100to200, headers200to250 } from "../test-data/BTCBlocks"
 import { assert, expect } from "chai";
 import { contract, reset, setContractImport, stateCache } from "@vsc.eco/contract-testing-utils";
+import { initializeAtSpecificBlock } from '../build/debug';
 
 const contractImport = import("../build/debug");
 
@@ -94,24 +95,29 @@ describe("general processHeaders tests", () => {
 });
 
 describe("test processHeaders without existing data", () => {
-  it("headers in wrong order, should only process block zero", () => {
+  it("headers in wrong order, should only process block 0", () => {
     // arrange
     const testHeaders = [
-      "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299",
+      // header 0
       "0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c",
+      // header 2
       "010000004860eb18bf1b1620e37e9490fc8a427514416fd75159ab86688e9a8300000000d5fdcc541e25de1c7a5addedf24858b8bb665c9f36ef744ee42c316022c90f9bb0bc6649ffff001d08d2bd61",
+      // header 1
+      "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299",
     ]
 
     // act
-    executeProcessHeaders(contract, testHeaders);
+    // validity depth 1 to verify that the headers are processed in the correct order
+    executeProcessHeaders(contract, testHeaders, 0, 0, 1);
 
     // assert
-    const createdCache = JSON.parse(stateCache.get("pre-headers/main"));
+    const createdCache = JSON.parse(stateCache.get("headers/0-100"));
     expect(Object.keys(createdCache).length === 1).to.be.true;
-    expect(createdCache["000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"]).to.not.be.undefined;
+    expect(createdCache["0"]).to.not.be.undefined;
+    expect(createdCache["1"]).to.be.undefined;
   });
 
-  it("mixed header ordering, should process first 3 blocks", () => {
+  it("mixed header ordering, should process blocks 5, 0, 1, 2", () => {
     // arrange
     const testHeaders = [
       // block 5
@@ -129,11 +135,11 @@ describe("test processHeaders without existing data", () => {
     ]
 
     // act
-    executeProcessHeaders(contract, testHeaders);
+    executeProcessHeaders(contract, testHeaders, 5, 5, 0);
 
     // assert
-    const createdCache = JSON.parse(stateCache.get("pre-headers/main"));
-    expect(Object.keys(createdCache).length === 3).to.be.true;
+    const createdCache = JSON.parse(stateCache.get("headers/0-100"));
+    expect(Object.keys(createdCache).length === 4).to.be.true;
   });
 });
 
@@ -164,23 +170,13 @@ describe("test processHeaders faulty headers", () => {
       it(`should throw an error`, () => {
         expect(() => executeProcessHeaders(contract, [header1, faultyHeader, header2])).to.throw(Error);
       });
-    } else if (i <= 7) {
+    } else {
       it(`should only process the good headers`, () => {
-        executeProcessHeaders(contract, [header0, faultyHeader, header2]);
+        executeProcessHeaders(contract, [header0, faultyHeader, header2], 0, 0, 1);
         const createdCache = JSON.parse(stateCache.get("headers/0-100"));
 
         // expect only header0 to be included, corrupted headers in the first half of the raw data will not be processed
         expect(Object.keys(createdCache).length === 1).to.be.true;
-        expect(createdCache["0"]).to.be.string("0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c");
-      });
-    } else if (i > 7) {
-      it(`should only process the good headers`, () => {
-        executeProcessHeaders(contract, [header0, faultyHeader, header2]);
-        const createdCache = JSON.parse(stateCache.get("headers/0-100"));
-
-        // expect header0 and the corrupted header to be included, if the header is corrupted in the second half of the raw data
-        // the header will still be processed. If the header wasnt corrupted we would expect all 3 headers to be processed
-        expect(Object.keys(createdCache).length === 2).to.be.true;
         expect(createdCache["0"]).to.be.string("0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c");
       });
     }
@@ -211,7 +207,11 @@ describe("test processHeaders with many headers", () => {
     const testHeaders = sortedKeys.map(key => allHeaders[key]);
 
     // act/ assert
-    expect(() => executeProcessHeaders(contract, testHeaders)).to.throw(Error);
+    const processData = JSON.stringify({
+      headers: allHeaders
+    });
+  
+    expect(() => contract.processHeaders(processData)).to.throw(Error);
   });
 });
 
@@ -255,6 +255,7 @@ describe("test processHeaders with existing state", () => {
     }
     stateCache.set("pre-headers/main", JSON.stringify(preheaders5to7));
     stateCache.set("headers/0-100", JSON.stringify(headers5to7));
+    stateCache.set("validity_depth", "0");
     // headers 8 and 9
     const testheaders = [
       "010000004494c8cf4154bdcc0720cd4a59d9c9b285e4b146d45f061d2b6c967100000000e3855ed886605b6d4a99d5fa2ef2e9b0b164e63df3c4136bebf2d0dac0f1f7a667c86649ffff001d1c4b5666",
@@ -262,7 +263,11 @@ describe("test processHeaders with existing state", () => {
     ]
 
     // act
-    executeProcessHeaders(contract, testheaders)
+    const processData = JSON.stringify({
+      headers: testheaders
+    });
+  
+    contract.processHeaders(processData)
 
     // assert
     const updatedCache = JSON.parse(stateCache.get("headers/0-100"))
@@ -282,12 +287,13 @@ describe("test processHeaders with existing state", () => {
     const initData = JSON.stringify({
       startHeader: startHeader,
       height: 7,
-      previousDifficulty: "8"
+      previousDifficulty: "7",
+      validityDepth: 0
     });
 
     // act
     contract.initializeAtSpecificBlock(initData);
-    executeProcessHeaders(contract, testheaders)
+    contract.processHeaders(JSON.stringify({ headers: testheaders }))
 
     // assert
     const updatedCache = JSON.parse(stateCache.get("headers/0-100"))
@@ -310,7 +316,8 @@ describe("test processHeaders with existing state", () => {
     const initData = JSON.stringify({
       startHeader: startHeader,
       height: 7,
-      previousDifficulty: "8"
+      previousDifficulty: "7",
+      validityDepth: 0
     });
 
     // act
@@ -327,13 +334,22 @@ describe("test processHeaders with existing state", () => {
   });
 });
 
-function executeProcessHeaders(contract: any, headers: Array<string>, validityDepth: number = 0) {
-  const testHeadersString = JSON.stringify({
-    headers: headers,
+// initializing contract with the supplied header(s), but setting the validity depth to 0 (or 1) for less boilerplate/ easier testing
+function executeProcessHeaders(contract: any, headers: Array<string>, startHeight: number = 0, previousDifficulty: number = 1, validityDepth = 0) {
+  const initData = JSON.stringify({
+    startHeader: headers[0],
+    height: startHeight,
+    previousDifficulty: previousDifficulty,
     validityDepth: validityDepth
   });
 
-  contract.processHeaders(testHeadersString);
+  contract.initializeAtSpecificBlock(initData);
+
+  const processData = JSON.stringify({
+    headers: headers.slice(1)
+  });
+
+  contract.processHeaders(processData);
 }
 
 function areObjectsEqual(obj1: any, obj2: any): boolean {

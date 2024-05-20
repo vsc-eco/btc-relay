@@ -6,6 +6,8 @@ import { Value } from 'assemblyscript-json/assembly/JSON';
 
 const DIFF_ONE_TARGET = BigInt.fromString('0xffff0000000000000000000000000000000000000000000000000000');
 
+const DEFAULT_VALIDITY_DEPTH = 6;
+
 const headersState: Map<string, Map<i64, string>> = new Map<string, Map<i64, string>>();
 
 // pla: for serialization and storage in the db, we convert BigInt to string and Uint8Array to hex string
@@ -53,23 +55,23 @@ class InitData {
     startHeader: string;
     height: i32;
     previousDifficulty: BigInt;
+    // pla: directs how many blocks to skip from the end of the chain, 0 no blocks are skipped
+    // default validity depth is 6 blocks, this means we skip the last 6 blocks from the end of the chain, because we cant assume that they are final yet
+    validityDepth: i32;
 
-    constructor(startHeader: string, height: i32, previousDifficulty: BigInt) {
+    constructor(startHeader: string, height: i32, previousDifficulty: BigInt, validityDepth: i32 = DEFAULT_VALIDITY_DEPTH) {
         this.startHeader = startHeader;
         this.height = height;
         this.previousDifficulty = previousDifficulty;
+        this.validityDepth = validityDepth;
     }
 }
 
 class ProcessData {
     headers: Array<string>;
-    // pla: directs how many blocks to skip from the end of the chain, 0 no blocks are skipped
-    // default validity depth is 6 blocks, this means we skip the last 6 blocks from the end of the chain, because we cant assume that they are final yet
-    validityDepth: i32;
 
-    constructor(headers: Array<string>, validityDepth: i32 = 6) {
+    constructor(headers: Array<string>) {
         this.headers = headers;
-        this.validityDepth = validityDepth;
     }
 }
 
@@ -116,11 +118,25 @@ export function parseProcessData(headerString: string): ProcessData {
         return value.toString();
     });
 
+    return new ProcessData(headers);
+}
+
+export function parseInitData(initDataString: string): InitData {
+    const parsed = <JSON.Obj>JSON.parse(initDataString);
     let validityDepthJSON: JSON.Integer | null = parsed.getInteger('validityDepth');
     if (validityDepthJSON != null) {
-        return new ProcessData(headers, validityDepthJSON.valueOf() as i32);
+        return new InitData(
+            getStringFromJSON(parsed, 'startHeader'),
+            getIntFromJSON(parsed, 'height') as i32,
+            BigInt.fromString(getStringFromJSON(parsed, 'previousDifficulty')),
+            validityDepthJSON.valueOf() as i32
+        );
     } else {
-        return new ProcessData(headers);
+        return new InitData(
+            getStringFromJSON(parsed, 'startHeader'),
+            getIntFromJSON(parsed, 'height') as i32,
+            BigInt.fromString(getStringFromJSON(parsed, 'previousDifficulty'))
+        );
     }
 }
 
@@ -294,16 +310,22 @@ function serializeHeaderState(headerState: Map<i64, string>): string {
     return encoder.toString();
 }
 
+export function getValidityDepth(defaultValue: i32): i32 {
+    const valDepthString = db.getObject(`validity_depth`);
+    if (valDepthString !== "null") {
+        return parseInt(valDepthString) as i32;
+    } else {
+        db.setObject(`validity_depth`, defaultValue.toString());
+        return defaultValue;
+    }
+}
+
 // pla: processHeaders only works when you start at block zero, with this function you can start at any arbitrary height
 export function initializeAtSpecificBlock(initDataString: string): void {
-    const parsed = <JSON.Obj>JSON.parse(initDataString);
-    const initData = new InitData(
-        getStringFromJSON(parsed, 'startHeader'),
-        getIntFromJSON(parsed, 'height') as i32,
-        BigInt.fromString(getStringFromJSON(parsed, 'previousDifficulty'))
-    );
+    const initData = parseInitData(initDataString);
 
     if (db.getObject(`pre-headers/main`) === "null") {
+        getValidityDepth(initData.validityDepth);
         const decodeHex = Arrays.fromHexString(initData.startHeader);
         const prevBlockLE = extractPrevBlockLE(decodeHex);
         const prevBlock = reverseEndianness(prevBlockLE);
@@ -340,6 +362,7 @@ export function processHeaders(processDataString: string): void {
     const processData = parseProcessData(processDataString);
     const headers: Array<string> = processData.headers;
     const preheaders = getPreheaders();
+    const validityDepth = getValidityDepth(DEFAULT_VALIDITY_DEPTH);
 
     for (let i = 0; i < headers.length; ++i) {
         let rawBH = headers[i];
@@ -407,8 +430,8 @@ export function processHeaders(processDataString: string): void {
         if (preheaders.has(prevBlockStr)) {
             let currentHeader = preheaders.get(prevBlockStr);
 
-            // pla: skipping last x blocks below validity_depth
-            if (curDepth >= processData.validityDepth) {
+            // pla: skipping last x blocks below validity_depth            
+            if (curDepth >= validityDepth) {
                 blocksToPush.push(currentHeader);
             } else {
                 curDepth = curDepth + 1;
