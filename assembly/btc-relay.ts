@@ -8,6 +8,10 @@ const DIFF_ONE_TARGET = BigInt.fromString('0xffff0000000000000000000000000000000
 
 const DEFAULT_VALIDITY_DEPTH = 6;
 
+const RETARGET_PERIOD = BigInt.from(1209600);
+
+const RETARGET_PERIOD_BLOCKS = 2016;
+
 const headersState: Map<string, Map<i64, string>> = new Map<string, Map<i64, string>>();
 
 // pla: for serialization and storage in the db, we convert BigInt to string and Uint8Array to hex string
@@ -320,6 +324,23 @@ export function getValidityDepth(defaultValue: i32): i32 {
     }
 }
 
+function retargetAlgorithm(previousTarget: BigInt, firstTimestamp: i64, secondTimestamp: i64): BigInt {
+    let elapsedTime: BigInt = BigInt.from(secondTimestamp - firstTimestamp);
+    const rp: BigInt = RETARGET_PERIOD;
+    const lowerBound: BigInt = rp.div(4);
+    const upperBound: BigInt = rp.mul(4);
+
+    // Normalize ratio to factor of 4 if very long or very short
+    if (elapsedTime < lowerBound) {
+        elapsedTime = lowerBound;
+    }
+    if (elapsedTime > upperBound) {
+        elapsedTime = upperBound;
+    }
+
+    return BigInt.from(previousTarget.mul(elapsedTime).div(rp));
+}
+
 // pla: processHeaders only works when you start at block zero, with this function you can start at any arbitrary height
 export function initializeAtSpecificBlock(initDataString: string): void {
     const initData = parseInitData(initDataString);
@@ -399,6 +420,20 @@ export function processHeaders(processDataString: string): void {
             }
         }
 
+        const currentHeight = prevHeight + 1;
+
+        if (currentHeight % RETARGET_PERIOD_BLOCKS === 0) {
+            let retargetedDiff = retargetAlgorithm(prevDiff, timestamp, new Date().getTime() / 1000);
+            // if (diff.ne(retargetedDiff)) {
+            //     continueLoop = false;
+            // }
+            // pla: in case we want to allow a 5% difference
+            retargetedDiff = retargetedDiff.mul(1.05)
+            if (diff.gt(retargetedDiff)) {
+                continueLoop = false;
+            }
+        }
+
         if (continueLoop) {
             const decodedHeader = new Header(
                 prevBlock,
@@ -406,7 +441,7 @@ export function processHeaders(processDataString: string): void {
                 merkleRoot,
                 diff,
                 diff.add(prevDiff),
-                prevHeight + 1,
+                currentHeight,
                 rawBH
             );
 
