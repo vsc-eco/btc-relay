@@ -2,6 +2,7 @@ import { firstTenBTCBlocks, headers0to100, headers100to200, headers200to250 } fr
 import { assert, expect } from "chai";
 import { contract, reset, setContractImport, stateCache } from "@vsc.eco/contract-testing-utils";
 import { initializeAtSpecificBlock } from '../build/debug';
+import { retargetAlgorithmVector } from "@@/test-data/retargetAlgoVector";
 
 const contractImport = import("../build/debug");
 
@@ -9,11 +10,13 @@ beforeAll(() => setContractImport(contractImport));
 
 beforeEach(reset);
 
+const BLOCK_ZERO_HEADER_HASH = "0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c";
+
 describe("general processHeaders tests", () => {
   it("should process and verify BTC headers", () => {
     // arrange
     const testHeaders = [
-      "0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c",
+      BLOCK_ZERO_HEADER_HASH,
       "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299",
       "010000004860eb18bf1b1620e37e9490fc8a427514416fd75159ab86688e9a8300000000d5fdcc541e25de1c7a5addedf24858b8bb665c9f36ef744ee42c316022c90f9bb0bc6649ffff001d08d2bd61",
       "01000000bddd99ccfda39da1b108ce1a5d70038d0a967bacb68b6b63065f626a0000000044f672226090d85db9a9f2fbfe5f0f9609b387af7be5b7fbb7a1767c831c9e995dbe6649ffff001d05e0ed6d",
@@ -39,7 +42,7 @@ describe("general processHeaders tests", () => {
   it("should process and verify BTC headers incrementally", () => {
     // arrange
     const testHeadersArrange = [
-      "0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c",
+      BLOCK_ZERO_HEADER_HASH,
       "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299",
       "010000004860eb18bf1b1620e37e9490fc8a427514416fd75159ab86688e9a8300000000d5fdcc541e25de1c7a5addedf24858b8bb665c9f36ef744ee42c316022c90f9bb0bc6649ffff001d08d2bd61",
       "01000000bddd99ccfda39da1b108ce1a5d70038d0a967bacb68b6b63065f626a0000000044f672226090d85db9a9f2fbfe5f0f9609b387af7be5b7fbb7a1767c831c9e995dbe6649ffff001d05e0ed6d",
@@ -69,7 +72,7 @@ describe("general processHeaders tests", () => {
   it("should process and verify BTC headers with default validity depth", () => {
     // arrange
     const testHeaders = [
-      "0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c",
+      BLOCK_ZERO_HEADER_HASH,
       "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299",
       "010000004860eb18bf1b1620e37e9490fc8a427514416fd75159ab86688e9a8300000000d5fdcc541e25de1c7a5addedf24858b8bb665c9f36ef744ee42c316022c90f9bb0bc6649ffff001d08d2bd61",
       "01000000bddd99ccfda39da1b108ce1a5d70038d0a967bacb68b6b63065f626a0000000044f672226090d85db9a9f2fbfe5f0f9609b387af7be5b7fbb7a1767c831c9e995dbe6649ffff001d05e0ed6d",
@@ -99,7 +102,7 @@ describe("test processHeaders without existing data", () => {
     // arrange
     const testHeaders = [
       // header 0
-      "0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c",
+      BLOCK_ZERO_HEADER_HASH,
       // header 2
       "010000004860eb18bf1b1620e37e9490fc8a427514416fd75159ab86688e9a8300000000d5fdcc541e25de1c7a5addedf24858b8bb665c9f36ef744ee42c316022c90f9bb0bc6649ffff001d08d2bd61",
       // header 1
@@ -123,7 +126,7 @@ describe("test processHeaders without existing data", () => {
       // block 5
       "0100000085144a84488ea88d221c8bd6c059da090e88f8a2c99690ee55dbba4e00000000e11c48fecdd9e72510ca84f023370c9a38bf91ac5cae88019bee94d24528526344c36649ffff001d1d03e477",
       // block 0
-      "0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c",
+      BLOCK_ZERO_HEADER_HASH,
       // block 8
       "010000004494c8cf4154bdcc0720cd4a59d9c9b285e4b146d45f061d2b6c967100000000e3855ed886605b6d4a99d5fa2ef2e9b0b164e63df3c4136bebf2d0dac0f1f7a667c86649ffff001d1c4b5666",
       // block 1
@@ -147,7 +150,7 @@ describe("test processHeaders without existing data", () => {
 // but because the blocks are cryptographically related, it is not possible to add any valid headers afterwards
 // the state is basically corrupted
 describe("test processHeaders faulty headers", () => {
-  const header0 = "0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c"
+  const header0 = BLOCK_ZERO_HEADER_HASH
   const header2 = "010000004860eb18bf1b1620e37e9490fc8a427514416fd75159ab86688e9a8300000000d5fdcc541e25de1c7a5addedf24858b8bb665c9f36ef744ee42c316022c90f9bb0bc6649ffff001d08d2bd61"
 
   // pla: header to be manipulated
@@ -177,7 +180,7 @@ describe("test processHeaders faulty headers", () => {
 
         // expect only header0 to be included, corrupted headers in the first half of the raw data will not be processed
         expect(Object.keys(createdCache).length === 1).to.be.true;
-        expect(createdCache["0"]).to.be.string("0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c");
+        expect(createdCache["0"]).to.be.string(BLOCK_ZERO_HEADER_HASH);
       });
     }
   }
@@ -203,14 +206,12 @@ describe("test processHeaders with many headers", () => {
   it("should not process headers, because block zero wasnt provided", () => {
     // arrange
     const allHeaders = { ...headers100to200 }
-    const sortedKeys = Object.keys(allHeaders).sort((a, b) => parseInt(a) - parseInt(b));
-    const testHeaders = sortedKeys.map(key => allHeaders[key]);
 
     // act/ assert
     const processData = JSON.stringify({
       headers: allHeaders
     });
-  
+
     expect(() => contract.processHeaders(processData)).to.throw(Error);
   });
 });
@@ -256,6 +257,13 @@ describe("test processHeaders with existing state", () => {
     stateCache.set("pre-headers/main", JSON.stringify(preheaders5to7));
     stateCache.set("headers/0-100", JSON.stringify(headers5to7));
     stateCache.set("validity_depth", "0");
+    const difficultyParams = JSON.stringify({
+      startTimestamp: 1349226660, // TIMESTAMP OF BLOCK 0
+      endTimestamp: 0,
+      difficulty: "26959535291011309493156476344723991336010898738574164086137773096960"
+    })
+    stateCache.set("last_difficulty_period_params", difficultyParams)
+
     // headers 8 and 9
     const testheaders = [
       "010000004494c8cf4154bdcc0720cd4a59d9c9b285e4b146d45f061d2b6c967100000000e3855ed886605b6d4a99d5fa2ef2e9b0b164e63df3c4136bebf2d0dac0f1f7a667c86649ffff001d1c4b5666",
@@ -266,7 +274,7 @@ describe("test processHeaders with existing state", () => {
     const processData = JSON.stringify({
       headers: testheaders
     });
-  
+
     contract.processHeaders(processData)
 
     // assert
@@ -276,7 +284,7 @@ describe("test processHeaders with existing state", () => {
     expect("10" in updatedCache).to.be.false
   });
 
-  it("should be able to process headers that dont start at block zero, because of the initialize function", () => {
+  it("should be able to process headers that dont start at block zero, by the use of the initialize function", () => {
     // header 7
     const startHeader = "010000008d778fdc15a2d3fb76b7122a3b5582bea4f21f5a0c693537e7a03130000000003f674005103b42f984169c7d008370967e91920a6a5d64fd51282f75bc73a68af1c66649ffff001d39a59c86"
     // headers 8 and 9
@@ -288,7 +296,8 @@ describe("test processHeaders with existing state", () => {
       startHeader: startHeader,
       height: 7,
       previousDifficulty: "7",
-      validityDepth: 0
+      validityDepth: 0,
+      lastDifficultyPeriodRetargetBlock: BLOCK_ZERO_HEADER_HASH
     });
 
     // act
@@ -304,7 +313,7 @@ describe("test processHeaders with existing state", () => {
 
   it("should not be able to process headers that dont start at block zero, because the initialize function was not called first", () => {
     const blockZero = [
-      "0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c",
+      BLOCK_ZERO_HEADER_HASH,
     ]
     // header 7
     const startHeader = "010000008d778fdc15a2d3fb76b7122a3b5582bea4f21f5a0c693537e7a03130000000003f674005103b42f984169c7d008370967e91920a6a5d64fd51282f75bc73a68af1c66649ffff001d39a59c86"
@@ -317,7 +326,8 @@ describe("test processHeaders with existing state", () => {
       startHeader: startHeader,
       height: 7,
       previousDifficulty: "7",
-      validityDepth: 0
+      validityDepth: 0,
+      lastDifficultyPeriodRetargetBlock: BLOCK_ZERO_HEADER_HASH
     });
 
     // act
@@ -334,13 +344,74 @@ describe("test processHeaders with existing state", () => {
   });
 });
 
+describe("test processHeaders at a difficulty retarget height", () => {
+  it("should process headers at first difficulty retarget height", () => {
+    // headers 2015, 2016, 2017
+    const testheaders = [
+      "01000000e25509cde707c3d02a693e4fe9e7cdd57c38a0d2c8d6341f20dae84b000000000c113df1185e162ee92d031fe21d1400ff7d705a3e9b9c860eea855313cd8ca26c087f49ffff001d30b73231",
+      "010000006397bb6abd4fc521c0d3f6071b5650389f0b4551bc40b4e6b067306900000000ace470aecda9c8818c8fe57688cd2a772b5a57954a00df0420a7dd546b6d2c576b0e7f49ffff001d33f0192f",
+      "01000000efdd7b6c4ce1dcbb370690558d7a556e431c3011f2546c896a2141a100000000d65bbd7472491e067d4562f38fc5420bdcd1335b4cb0cf1e90aefe828fef88cbcd137f49ffff001d34a93051"
+    ]
+
+    // act
+    executeProcessHeaders(contract, testheaders, 2015, 2015, 0)
+
+    // assert
+    const updatedCache = JSON.parse(stateCache.get("headers/2000-2100"))
+    expect("2015" in updatedCache).to.be.true
+    expect("2016" in updatedCache).to.be.true
+    expect("2017" in updatedCache).to.be.true
+  });
+
+  it("should process headers at arbitrary difficulty retarget height", () => {
+    // headers 201598, 201599, 201600, 201601
+    const testheaders = [
+      "02000000b9985b54b29f5244d2884e497a68523a6f8a3874dadc1db26804000000000000f3689bc987a63f3d9db84913a4521691b6292d46be11166412a1bb561159098f238e6b508bdb051a6ffb0277",
+      "0200000090750e6782a6a91bf18823869519802e76ee462f462e8fb2cc0000000000000052db8ced4268ec157c6f202c4052c829408d986da5f06300293e32ff8ac2c00d0d926b508bdb051a3ee3ff66",
+      "010000009d6f4e09d579c93015a83e9081fee83a5c8b1ba3c86516b61f0400000000000025399317bb5c7c4daefe8fe2c4dfac0cea7e4e85913cd667030377240cadfe93a4906b50087e051a84297df7",
+      "01000000d09acdf9c9959a1754da9dae916e70bef9f131ad30ef8be2a50300000000000019381ca69a6a9274670e7bc35c2bf40997b502643a780e4c076572d0844daf8281946b50087e051acaf7bf51"
+    ]
+    const initData = JSON.stringify({
+      startHeader: testheaders[0],
+      height: 201598,
+      previousDifficulty: "2864140",
+      validityDepth: 0,
+      lastDifficultyPeriodRetargetBlock: "01000000f13005722c25ba4e6313a22f3177fe5f1c24acf483f50b7604030000000000003c797183997d7752732979a0a6e33238cd6b0af4c40ec4607acaf8903d95914db3435a508bdb051a00e7e734"
+    });
+    const processData = JSON.stringify({
+      headers: testheaders.slice(1)
+    });
+
+    // act
+    contract.initializeAtSpecificBlock(initData);
+    contract.processHeaders(processData);
+
+    // assert
+    const updatedCache500to600 = JSON.parse(stateCache.get("headers/201500-201600"))
+    const updatedCache600To700 = JSON.parse(stateCache.get("headers/201600-201700"))
+    expect("201598" in updatedCache500to600).to.be.true
+    expect("201599" in updatedCache500to600).to.be.true
+    expect("201600" in updatedCache600To700).to.be.true
+    expect("201601" in updatedCache600To700).to.be.true
+
+    const updatedDifficultyParams = stateCache.get("last_difficulty_period_params")
+    const expectedDifficultyParams = JSON.stringify({
+      startTimestamp: 1349226660, // TIMESTAMP OF BLOCK 201600
+      endTimestamp: 0,
+      difficulty: "8825807680257895657479991196220989276506275995152177228848553"
+    })
+    expect(updatedDifficultyParams).to.equal(expectedDifficultyParams)
+  });
+});
+
 // initializing contract with the supplied header(s), but setting the validity depth to 0 (or 1) for less boilerplate/ easier testing
 function executeProcessHeaders(contract: any, headers: Array<string>, startHeight: number = 0, previousDifficulty: number = 1, validityDepth = 0) {
   const initData = JSON.stringify({
     startHeader: headers[0],
     height: startHeight,
     previousDifficulty: previousDifficulty,
-    validityDepth: validityDepth
+    validityDepth: validityDepth,
+    lastDifficultyPeriodRetargetBlock: BLOCK_ZERO_HEADER_HASH
   });
 
   contract.initializeAtSpecificBlock(initData);

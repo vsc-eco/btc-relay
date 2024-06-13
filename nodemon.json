@@ -1,5 +1,5 @@
 {
     "watch": ["assembly"],
     "ext": "ts",
-    "exec": "asc assembly/index.ts --target debug"
+    "exec": "asc assembly/entrypoint-tests.ts --target debug"
   }

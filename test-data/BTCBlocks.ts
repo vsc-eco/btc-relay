@@ -4,6 +4,7 @@ export let firstTenBTCBlocks = {
         "timestamp": "2009-01-03T18:15:05.000Z",
         "merkleRoot": "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
         "diff": "1",
+        "diffUnformatted": "26959535291011309493156476344723991336010898738574164086137773096960",
         "totalDiff": "1",
         "height": 0,
         "raw": "0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c"
@@ -13,6 +14,7 @@ export let firstTenBTCBlocks = {
         "timestamp": "2009-01-09T02:54:25.000Z",
         "merkleRoot": "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098",
         "diff": "1",
+        "diffUnformatted": "26959535291011309493156476344723991336010898738574164086137773096960",
         "totalDiff": "2",
         "height": 1,
         "raw": "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299"
@@ -22,6 +24,7 @@ export let firstTenBTCBlocks = {
         "timestamp": "2009-01-09T02:55:44.000Z",
         "merkleRoot": "9b0fc92260312ce44e74ef369f5c66bbb85848f2eddd5a7a1cde251e54ccfdd5",
         "diff": "1",
+        "diffUnformatted": "26959535291011309493156476344723991336010898738574164086137773096960",
         "totalDiff": "3",
         "height": 2,
         "raw": "010000004860eb18bf1b1620e37e9490fc8a427514416fd75159ab86688e9a8300000000d5fdcc541e25de1c7a5addedf24858b8bb665c9f36ef744ee42c316022c90f9bb0bc6649ffff001d08d2bd61"
@@ -31,6 +34,7 @@ export let firstTenBTCBlocks = {
         "timestamp": "2009-01-09T03:02:53.000Z",
         "merkleRoot": "999e1c837c76a1b7fbb7e57baf87b309960f5ffefbf2a9b95dd890602272f644",
         "diff": "1",
+        "diffUnformatted": "26959535291011309493156476344723991336010898738574164086137773096960",
         "totalDiff": "4",
         "height": 3,
         "raw": "01000000bddd99ccfda39da1b108ce1a5d70038d0a967bacb68b6b63065f626a0000000044f672226090d85db9a9f2fbfe5f0f9609b387af7be5b7fbb7a1767c831c9e995dbe6649ffff001d05e0ed6d"
@@ -40,6 +44,7 @@ export let firstTenBTCBlocks = {
         "timestamp": "2009-01-09T03:16:28.000Z",
         "merkleRoot": "df2b060fa2e5e9c8ed5eaf6a45c13753ec8c63282b2688322eba40cd98ea067a",
         "diff": "1",
+        "diffUnformatted": "26959535291011309493156476344723991336010898738574164086137773096960",
         "totalDiff": "5",
         "height": 4,
         "raw": "010000004944469562ae1c2c74d9a535e00b6f3e40ffbad4f2fda3895501b582000000007a06ea98cd40ba2e3288262b28638cec5337c1456aaf5eedc8e9e5a20f062bdf8cc16649ffff001d2bfee0a9"
@@ -49,6 +54,7 @@ export let firstTenBTCBlocks = {
         "timestamp": "2009-01-09T03:23:48.000Z",
         "merkleRoot": "63522845d294ee9b0188ae5cac91bf389a0c3723f084ca1025e7d9cdfe481ce1",
         "diff": "1",
+        "diffUnformatted": "26959535291011309493156476344723991336010898738574164086137773096960",
         "totalDiff": "6",
         "height": 5,
         "raw": "0100000085144a84488ea88d221c8bd6c059da090e88f8a2c99690ee55dbba4e00000000e11c48fecdd9e72510ca84f023370c9a38bf91ac5cae88019bee94d24528526344c36649ffff001d1d03e477"
@@ -58,6 +64,7 @@ export let firstTenBTCBlocks = {
         "timestamp": "2009-01-09T03:29:49.000Z",
         "merkleRoot": "20251a76e64e920e58291a30d4b212939aae976baca40e70818ceaa596fb9d37",
         "diff": "1",
+        "diffUnformatted": "26959535291011309493156476344723991336010898738574164086137773096960",
         "totalDiff": "7",
         "height": 6,
         "raw": "01000000fc33f596f822a0a1951ffdbf2a897b095636ad871707bf5d3162729b00000000379dfb96a5ea8c81700ea4ac6b97ae9a9312b2d4301a29580e924ee6761a2520adc46649ffff001d189c4c97"
@@ -67,6 +74,7 @@ export let firstTenBTCBlocks = {
         "timestamp": "2009-01-09T03:39:29.000Z",
         "merkleRoot": "8aa673bc752f2851fd645d6a0a92917e967083007d9c1684f9423b100540673f",
         "diff": "1",
+        "diffUnformatted": "26959535291011309493156476344723991336010898738574164086137773096960",
         "totalDiff": "8",
         "height": 7,
         "raw": "010000008d778fdc15a2d3fb76b7122a3b5582bea4f21f5a0c693537e7a03130000000003f674005103b42f984169c7d008370967e91920a6a5d64fd51282f75bc73a68af1c66649ffff001d39a59c86"
@@ -76,6 +84,7 @@ export let firstTenBTCBlocks = {
         "timestamp": "2009-01-09T03:45:43.000Z",
         "merkleRoot": "a6f7f1c0dad0f2eb6b13c4f33de664b1b0e9f22efad5994a6d5b6086d85e85e3",
         "diff": "1",
+        "diffUnformatted": "26959535291011309493156476344723991336010898738574164086137773096960",
         "totalDiff": "9",
         "height": 8,
         "raw": "010000004494c8cf4154bdcc0720cd4a59d9c9b285e4b146d45f061d2b6c967100000000e3855ed886605b6d4a99d5fa2ef2e9b0b164e63df3c4136bebf2d0dac0f1f7a667c86649ffff001d1c4b5666"
@@ -85,6 +94,7 @@ export let firstTenBTCBlocks = {
         "timestamp": "2009-01-09T03:54:39.000Z",
         "merkleRoot": "0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9",
         "diff": "1",
+        "diffUnformatted": "26959535291011309493156476344723991336010898738574164086137773096960",
         "totalDiff": "10",
         "height": 9,
         "raw": "01000000c60ddef1b7618ca2348a46e868afc26e3efc68226c78aa47f8488c4000000000c997a5e56e104102fa209c6a852dd90660a20b2d9c352423edce25857fcd37047fca6649ffff001d28404f53"
@@ -94,6 +104,7 @@ export let firstTenBTCBlocks = {
         "timestamp": "2009-01-09T04:05:52.000Z",
         "merkleRoot": "d3ad39fa52a89997ac7381c95eeffeaf40b66af7a57e9eba144be0a175a12b11",
         "diff": "1",
+        "diffUnformatted": "26959535291011309493156476344723991336010898738574164086137773096960",
         "totalDiff": "11",
         "height": 10,
         "raw": "010000000508085c47cc849eb80ea905cc7800a3be674ffc57263cf210c59d8d00000000112ba175a1e04b14ba9e7ea5f76ab640affeef5ec98173ac9799a852fa39add320cd6649ffff001d1e2de565"

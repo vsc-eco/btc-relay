@@ -1,2 +1,1 @@
-export * from './btc-relay'
-export * from './btc-relay-validation'
+export { initializeAtSpecificBlock, processHeaders } from "./btc-relay"
