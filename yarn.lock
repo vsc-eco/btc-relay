@@ -1571,15 +1571,17 @@
   dependencies:
     "@types/yargs-parser" "*"
 
-"@vsc.eco/contract-testing-utils@^0.0.6":
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/@vsc.eco/contract-testing-utils/-/contract-testing-utils-0.0.6.tgz#053d2c11457f4d6f49bc0864d87125e18c2abf31"
-  integrity sha512-QWHVYbVY/vFW/PotPWMHEHymvrmeN6e7JQp+x/fJelWakkjryF88u3z6d88521IoF+YlYwiIClAnQVMOdhbZGg==
+"@vsc.eco/contract-testing-utils@^0.1.2":
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/@vsc.eco/contract-testing-utils/-/contract-testing-utils-0.1.2.tgz#e0f9a72e6fb1f777e53681656a04a40b283c48f4"
+  integrity sha512-280nlaXdPq5JcE1FYMAPnjo/nrQBbuMICkzOPpKpIPmTzUhjPoKH06bB4K6O1XUuj5BoaoQW0eKrMtM+CyNDxg==
   dependencies:
     "@summa-tx/bitcoin-spv-js" "^4.0.2"
     assemblyscript "^0.27.27"
+    bech32 "^2.0.0"
     bitcoinjs-lib "^6.1.5"
     mocha "^10.4.0"
+    sift "^17.1.3"
 
 "@vsc.eco/sdk@^0.1.4":
   version "0.1.4"
@@ -5434,6 +5436,11 @@ side-channel@^1.0.4:
     es-errors "^1.3.0"
     get-intrinsic "^1.2.4"
     object-inspect "^1.13.1"
+
+sift@^17.1.3:
+  version "17.1.3"
+  resolved "https://registry.yarnpkg.com/sift/-/sift-17.1.3.tgz#9d2000d4d41586880b0079b5183d839c7a142bf7"
+  integrity sha512-Rtlj66/b0ICeFzYTuNvX/EF1igRbbnGSvEyT79McoZa/DeGhMyC5pWKOEsZKnpkqtSeovd5FL/bjHWC3CIIvCQ==
 
 signal-exit@^3.0.3, signal-exit@^3.0.7:
   version "3.0.7"

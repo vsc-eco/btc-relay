@@ -5,6 +5,7 @@ import {
   stateCache,
   contractEnv,
   setContractImport,
+  finalizeTransaction,
 } from "@vsc.eco/contract-testing-utils";
 
 // import { beforeEach, describe, it } from "mocha";
@@ -21,6 +22,7 @@ describe("hello-world", () => {
     expect(contract.testJSON(JSON.stringify({ to: "test2" }))).to.equal(
       "Count: 1"
     );
+    finalizeTransaction();
     expect(logs).to.deep.equal([
       '{"to":"test2"}',
       "to",
@@ -40,6 +42,7 @@ describe("hello-world", () => {
     } catch {
       threw = true;
     }
+    finalizeTransaction();
     expect(threw).to.equal(true);
     expect(logs).to.deep.equal([
       '{"to":"test1"}',
