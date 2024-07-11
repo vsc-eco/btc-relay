@@ -8,8 +8,8 @@ import {
   finalizeTransaction,
 } from "@vsc.eco/contract-testing-utils";
 
-// import { beforeEach, describe, it } from "mocha";
 import { expect } from "chai";
+const beforeAll = globalThis.beforeAll || globalThis.before;
 
 const contractImport = import("../build/debug");
 
