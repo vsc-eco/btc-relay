@@ -205,8 +205,11 @@ export function saveString(key: string, value: string): void {
     db.setObject(key, encoder.toString());
 }
 
-export function getString(key: string): string {
+export function retrieveString(key: string): string {
     const value = db.getObject(key);
+    if (value === "null") {
+        return value;
+    }
     const parsed = <JSON.Obj>JSON.parse(value)
     return parsed.getString(key)!.valueOf();
 }
@@ -412,7 +415,7 @@ export function serializeHeaderState(headerState: Map<i64, string>): string {
 }
 
 export function getValidityDepth(defaultValue: i32): i32 {
-    const valDepthString = getString('validity_depth');
+    const valDepthString = retrieveString('validity_depth');
     if (valDepthString !== "null") {
         return parseInt(valDepthString) as i32;
     } else {
@@ -432,7 +435,7 @@ export function setLastDifficultyPeriodParams(defaultValue: DifficultyPeriodPara
 }
 
 export function getLastDifficultyPeriodParams(): DifficultyPeriodParams {
-    const valDepthString = getString(`last_difficulty_period_params`);
+    const valDepthString = db.getObject(`last_difficulty_period_params`);
     if (valDepthString !== "null") {
         const parsed = <JSON.Obj>JSON.parse(valDepthString);
         const difficultyPeriodParams = new DifficultyPeriodParams(
