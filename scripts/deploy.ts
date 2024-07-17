@@ -288,6 +288,9 @@ async function compileAS(args: { scriptPath: string }): Promise<CompileResult> {
           if (filename === "input.ts") {
             return (await fs.readFile(scriptPath)).toString();
           }
+          if (filename === "btc-relay.ts") {
+            return (await fs.readFile("F:\\btc-relay-final\\assembly\\btc-relay.ts")).toString();
+          }
           return (await fs.readFile(filename)).toString();
         } catch {
           return null;
