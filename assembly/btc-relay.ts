@@ -1,7 +1,6 @@
 import { db, Arrays, SystemAPI, Crypto, reverseEndianness } from '@vsc.eco/sdk/assembly';
 import { JSON, JSONEncoder } from "assemblyscript-json/assembly";
 import { BigInt } from "as-bigint/assembly"
-import { calcKey, extractPrevBlockLE, getHeaders, getStringFromJSON, extractMerkleRootLE, hash256 } from './btc-relay-utils';
 import { Value } from 'assemblyscript-json/assembly/JSON';
 
 const DIFF_ONE_TARGET = BigInt.fromString('0xffff0000000000000000000000000000000000000000000000000000');
@@ -99,6 +98,68 @@ export class ProcessData {
     }
 }
 
+export function calcKey(height: i32): string {
+    const cs: i32 = 100;
+    // pla: is math.floor needed?
+    // const keyA: i32 = Mathf.floor(height / cs) * cs;
+    const keyA: i32 = (height / cs) * cs;
+
+    return keyA.toString() + "-" + (keyA + cs).toString();
+}
+
+export function getHeaders(key: string): Map<i64, string> {
+    const pulledHeaders: Map<i64, string> = new Map<i64, string>();
+    const fetchedHeaderState = db.getObject(`headers/${key}`);
+    if (fetchedHeaderState !== "null") {
+        const parsed = <JSON.Obj>JSON.parse(fetchedHeaderState);
+        for (let i = 0; i < parsed.keys.length; ++i) {
+            let key = parsed.keys[i];
+            let blockRaw = getStringFromJSON(<JSON.Obj>parsed, key);
+            let height = parseInt(key) as i64;
+            pulledHeaders.set(height, blockRaw);
+        }
+    }
+
+    return pulledHeaders;
+}
+
+export function getStringFromJSON(jsonObject: JSON.Obj, key: string): string {
+    let extractedValue: JSON.Str | null = jsonObject.getString(key);
+    if (extractedValue != null) {
+        return extractedValue.valueOf();
+    }
+
+    return "";
+}
+
+export function extractPrevBlockLE(header: Uint8Array): Uint8Array {
+    return header.slice(4, 36);
+}
+
+export function extractMerkleRootLE(header: Uint8Array): Uint8Array {
+    return header.slice(36, 68);
+}
+
+// Implements bitcoin's hash256 (double sha2)
+export function hash256(preImage: Uint8Array): Uint8Array {
+    return sha256(sha256(preImage));
+}
+
+export function sha256(param: Uint8Array): Uint8Array {
+    const arg0Value: string = Arrays.toHexString(param, false);
+
+    const obj = new JSON.Obj()
+    obj.set('arg0', arg0Value)
+
+    const result = <JSON.Obj>JSON.parse(SystemAPI.call('crypto.sha256', obj.stringify()))
+    if (result.getString('result')!.isString) {
+        return Arrays.fromHexString(result.getString('result')!.valueOf()!)
+    } else {
+        //Never should happen
+        throw new Error('Crypto - incorrect binding response')
+    }
+}
+
 export function getIntFromJSON(jsonObject: JSON.Obj, key: string): i64 {
     let extractedValue: JSON.Integer | null = jsonObject.getInteger(key);
     if (extractedValue != null) {
@@ -136,6 +197,20 @@ export function getPreheaders(): Map<string, Header> {
     return preheaders;
 }
 
+export function saveString(key: string, value: string): void {
+    let encoder = new JSONEncoder();
+    encoder.pushObject(null);
+    encoder.setString(key, value);
+    encoder.popObject();
+    db.setObject(key, encoder.toString());
+}
+
+export function getString(key: string): string {
+    const value = db.getObject(key);
+    const parsed = <JSON.Obj>JSON.parse(value)
+    return parsed.getString(key)!.valueOf();
+}
+
 export function parseProcessData(headerString: string): ProcessData {
     const parsed = <JSON.Obj>JSON.parse(headerString);
 
@@ -163,7 +238,7 @@ export function parseInitData(initDataString: string): InitData {
     if (lastDifficultyPeriodRetargetBlockJSON != null) {
         initData.lastDifficultyPeriodRetargetBlock = lastDifficultyPeriodRetargetBlockJSON.valueOf();
     }
-    
+
     return initData;
 }
 
@@ -337,11 +412,11 @@ export function serializeHeaderState(headerState: Map<i64, string>): string {
 }
 
 export function getValidityDepth(defaultValue: i32): i32 {
-    const valDepthString = db.getObject(`validity_depth`);
+    const valDepthString = getString('validity_depth');
     if (valDepthString !== "null") {
         return parseInt(valDepthString) as i32;
     } else {
-        db.setObject(`validity_depth`, defaultValue.toString());
+        saveString(`validity_depth`, defaultValue.toString());
         return defaultValue;
     }
 }
@@ -353,11 +428,11 @@ export function setLastDifficultyPeriodParams(defaultValue: DifficultyPeriodPara
     encoder.setInteger("endTimestamp", defaultValue.endTimestamp);
     encoder.setString("difficulty", defaultValue.difficulty.toString());
     encoder.popObject();
-    db.setObject(`last_difficulty_period_params`, encoder.toString());
+    saveString(`last_difficulty_period_params`, encoder.toString());
 }
 
 export function getLastDifficultyPeriodParams(): DifficultyPeriodParams {
-    const valDepthString = db.getObject(`last_difficulty_period_params`);
+    const valDepthString = getString(`last_difficulty_period_params`);
     if (valDepthString !== "null") {
         const parsed = <JSON.Obj>JSON.parse(valDepthString);
         const difficultyPeriodParams = new DifficultyPeriodParams(
