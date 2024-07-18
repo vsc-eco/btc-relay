@@ -431,7 +431,7 @@ export function setLastDifficultyPeriodParams(defaultValue: DifficultyPeriodPara
     encoder.setInteger("endTimestamp", defaultValue.endTimestamp);
     encoder.setString("difficulty", defaultValue.difficulty.toString());
     encoder.popObject();
-    saveString(`last_difficulty_period_params`, encoder.toString());
+    db.setObject(`last_difficulty_period_params`, encoder.toString());
 }
 
 export function getLastDifficultyPeriodParams(): DifficultyPeriodParams {
