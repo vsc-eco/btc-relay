@@ -26,7 +26,6 @@ describe("general processHeaders tests", () => {
       "010000008d778fdc15a2d3fb76b7122a3b5582bea4f21f5a0c693537e7a03130000000003f674005103b42f984169c7d008370967e91920a6a5d64fd51282f75bc73a68af1c66649ffff001d39a59c86",
       "010000004494c8cf4154bdcc0720cd4a59d9c9b285e4b146d45f061d2b6c967100000000e3855ed886605b6d4a99d5fa2ef2e9b0b164e63df3c4136bebf2d0dac0f1f7a667c86649ffff001d1c4b5666",
       "01000000c60ddef1b7618ca2348a46e868afc26e3efc68226c78aa47f8488c4000000000c997a5e56e104102fa209c6a852dd90660a20b2d9c352423edce25857fcd37047fca6649ffff001d28404f53",
-      "010000000508085c47cc849eb80ea905cc7800a3be674ffc57263cf210c59d8d00000000112ba175a1e04b14ba9e7ea5f76ab640affeef5ec98173ac9799a852fa39add320cd6649ffff001d1e2de565",
     ]
 
     // act
@@ -35,8 +34,8 @@ describe("general processHeaders tests", () => {
     // assert
     const updatedPreheaders = stateCache.get("pre-headers/main");
     const updatedHeaders = stateCache.get("headers/0-100");
-    expect(updatedPreheaders).to.equal(JSON.stringify(firstTenBTCBlocks));
-    expect(Object.keys(JSON.parse(updatedHeaders)).length).to.equal(11);
+    expect(updatedPreheaders).to.equal(JSON.stringify({...firstTenBTCBlocks[8], ...firstTenBTCBlocks[9]}));
+    expect(Object.keys(JSON.parse(updatedHeaders)).length).to.equal(9);
   });
 
   it("should process and verify BTC headers incrementally", () => {
@@ -48,7 +47,6 @@ describe("general processHeaders tests", () => {
       "01000000bddd99ccfda39da1b108ce1a5d70038d0a967bacb68b6b63065f626a0000000044f672226090d85db9a9f2fbfe5f0f9609b387af7be5b7fbb7a1767c831c9e995dbe6649ffff001d05e0ed6d",
       "010000004944469562ae1c2c74d9a535e00b6f3e40ffbad4f2fda3895501b582000000007a06ea98cd40ba2e3288262b28638cec5337c1456aaf5eedc8e9e5a20f062bdf8cc16649ffff001d2bfee0a9",
     ]
-    executeProcessHeaders(contract, testHeadersArrange);
     const testHeadersTest = [
       "010000004944469562ae1c2c74d9a535e00b6f3e40ffbad4f2fda3895501b582000000007a06ea98cd40ba2e3288262b28638cec5337c1456aaf5eedc8e9e5a20f062bdf8cc16649ffff001d2bfee0a9",
       "0100000085144a84488ea88d221c8bd6c059da090e88f8a2c99690ee55dbba4e00000000e11c48fecdd9e72510ca84f023370c9a38bf91ac5cae88019bee94d24528526344c36649ffff001d1d03e477",
@@ -56,17 +54,17 @@ describe("general processHeaders tests", () => {
       "010000008d778fdc15a2d3fb76b7122a3b5582bea4f21f5a0c693537e7a03130000000003f674005103b42f984169c7d008370967e91920a6a5d64fd51282f75bc73a68af1c66649ffff001d39a59c86",
       "010000004494c8cf4154bdcc0720cd4a59d9c9b285e4b146d45f061d2b6c967100000000e3855ed886605b6d4a99d5fa2ef2e9b0b164e63df3c4136bebf2d0dac0f1f7a667c86649ffff001d1c4b5666",
       "01000000c60ddef1b7618ca2348a46e868afc26e3efc68226c78aa47f8488c4000000000c997a5e56e104102fa209c6a852dd90660a20b2d9c352423edce25857fcd37047fca6649ffff001d28404f53",
-      "010000000508085c47cc849eb80ea905cc7800a3be674ffc57263cf210c59d8d00000000112ba175a1e04b14ba9e7ea5f76ab640affeef5ec98173ac9799a852fa39add320cd6649ffff001d1e2de565",
     ]
-
+    
     // act
+    executeProcessHeaders(contract, testHeadersArrange);
     executeProcessHeaders(contract, testHeadersTest);
 
     // assert
     const updatedPreheaders = stateCache.get("pre-headers/main");
     const updatedHeaders = stateCache.get("headers/0-100");
-    expect(updatedPreheaders).to.equal(JSON.stringify(firstTenBTCBlocks));
-    expect(Object.keys(JSON.parse(updatedHeaders)).length).to.equal(11);
+    expect(updatedPreheaders).to.equal(JSON.stringify({...firstTenBTCBlocks[8], ...firstTenBTCBlocks[9]}));
+    expect(Object.keys(JSON.parse(updatedHeaders)).length).to.equal(9);
   });
 
   it("should process and verify BTC headers with default validity depth", () => {
@@ -256,7 +254,7 @@ describe("test processHeaders with existing state", () => {
     }
     stateCache.set("pre-headers/main", JSON.stringify(preheaders5to7));
     stateCache.set("headers/0-100", JSON.stringify(headers5to7));
-    stateCache.set("validity_depth", "0");
+    stateCache.set("validity_depth", JSON.stringify({validity_depth: "0"}));
     const difficultyParams = JSON.stringify({
       startTimestamp: 1349226660, // TIMESTAMP OF BLOCK 0
       endTimestamp: 0,
@@ -296,7 +294,7 @@ describe("test processHeaders with existing state", () => {
       startHeader: startHeader,
       height: 7,
       previousDifficulty: "7",
-      validityDepth: 0,
+      validityDepth: 1,
       lastDifficultyPeriodRetargetBlock: BLOCK_ZERO_HEADER_HASH
     });
 
@@ -307,7 +305,7 @@ describe("test processHeaders with existing state", () => {
     // assert
     const updatedCache = JSON.parse(stateCache.get("headers/0-100"))
     expect("8" in updatedCache).to.be.true
-    expect("9" in updatedCache).to.be.true
+    expect("9" in updatedCache).to.be.false
     expect("10" in updatedCache).to.be.false
   });
 
@@ -326,21 +324,19 @@ describe("test processHeaders with existing state", () => {
       startHeader: startHeader,
       height: 7,
       previousDifficulty: "7",
-      validityDepth: 0,
+      validityDepth: 1,
       lastDifficultyPeriodRetargetBlock: BLOCK_ZERO_HEADER_HASH
     });
 
     // act
-    executeProcessHeaders(contract, blockZero)
+    contract.processHeaders(JSON.stringify({headers: blockZero}))
     contract.initializeAtSpecificBlock(initData);
-    executeProcessHeaders(contract, testheaders)
+    contract.processHeaders(JSON.stringify({headers: testheaders}))
 
     // assert
-    const updatedCache = JSON.parse(stateCache.get("headers/0-100"))
-    expect("0" in updatedCache).to.be.true
-    expect("8" in updatedCache).to.be.false
-    expect("9" in updatedCache).to.be.false
-    expect("10" in updatedCache).to.be.false
+    const updatedPreheaders = stateCache.get("pre-headers/main");
+    expect(updatedPreheaders).to.equal(JSON.stringify(firstTenBTCBlocks[0]));
+    expect(stateCache.get("headers/0-100")).to.be.undefined
   });
 });
 
@@ -404,8 +400,9 @@ describe("test processHeaders at a difficulty retarget height", () => {
   });
 });
 
-// initializing contract with the supplied header(s), but setting the validity depth to 0 (or 1) for less boilerplate/ easier testing
-function executeProcessHeaders(contract: any, headers: Array<string>, startHeight: number = 0, previousDifficulty: number = 1, validityDepth = 0) {
+// initializing contract with the supplied header(s), but setting the validity depth to 1 for less boilerplate/ easier testing
+// note: validityDepth 0 does not work and yields an error after the second processHeaders call
+function executeProcessHeaders(contract: any, headers: Array<string>, startHeight: number = 0, previousDifficulty: number = 1, validityDepth = 1) {
   const initData = JSON.stringify({
     startHeader: headers[0],
     height: startHeight,

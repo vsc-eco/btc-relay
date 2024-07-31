@@ -591,10 +591,9 @@ export function processHeaders(processDataString: string): void {
             preheaders.set(Arrays.toHexString(reverseEndianness(headerHash)), decodedHeader);
         }
     }
+
     let sortedPreheaders: Array<Map<string, Header>> = sortPreheadersByTotalDiff(preheaders);
-
     const topHeader: Uint8Array = Arrays.fromHexString(sortedPreheaders[sortedPreheaders.length - 1].keys()[0]);
-
     let blocksToPush: Array<Header> = [];
     let curDepth: i32 = 0;
     let prevBlock: Uint8Array | null = null;
@@ -624,6 +623,7 @@ export function processHeaders(processDataString: string): void {
     if (lastDifficultyPeriodParams.startTimestamp === 0) {
         throw new Error('lastDifficultyPeriodParams.startTimestamp is not set. This error should never happen.');
     }
+    
     const targetDiffValidatedBlocks: Array<Header> = [];
     for (let i = blocksToPush.length - 1; i >= 0; i--) {
         if (blocksToPush[i].height !== 0) {
@@ -643,7 +643,6 @@ export function processHeaders(processDataString: string): void {
             targetDiffValidatedBlocks.push(blocksToPush[i]);
         }
     }
-
 
     let highestHeight = 0;
     for (let i = 0, k = targetDiffValidatedBlocks.length; i < k; ++i) {
@@ -668,13 +667,12 @@ export function processHeaders(processDataString: string): void {
     }
 
     let preHeaderKeys = preheaders.keys();
+
     for (let i = 0, k = preHeaderKeys.length; i < k; ++i) {
         let key = unchecked(preHeaderKeys[i]);
-        if (headersState.has(key)) {
-            let value = preheaders.get(key);
-            if (highestHeight >= value.height) {
-                preheaders.delete(unchecked(key));
-            }
+        let value = preheaders.get(key);
+        if (highestHeight >= value.height + validityDepth) {
+            preheaders.delete(unchecked(key));
         }
     }
 
@@ -687,7 +685,6 @@ export function processHeaders(processDataString: string): void {
             db.setObject(`headers/${key}`, serializedHeaderState);
         }
     }
-
     db.setObject(`pre-headers/main`, serializePreHeaders(preheaders));
 }
 
