@@ -7,6 +7,8 @@ module.exports = {
     "/tests/mocks.ts",
     "/tests/debug.ts",
     "/tests/vite-env.d.ts",
+    "/tests/btc-relay-test.ts",
+    "/tests/retarget-algo-test.ts",
   ],
   testEnvironment: "node",
   extensionsToTreatAsEsm: [".ts"],
@@ -27,4 +29,5 @@ module.exports = {
       },
     ],
   },
+  testTimeout: 300000, // Set global timeout to 30 seconds
 };

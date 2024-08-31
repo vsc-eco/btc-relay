@@ -2,4 +2,3 @@ node_modules
 .yarn
 .env
 package-lock.json
-yarn.lock

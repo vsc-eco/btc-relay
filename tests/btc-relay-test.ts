@@ -4,6 +4,8 @@ import { contract, reset, setContractImport, stateCache } from "@vsc.eco/contrac
 import { initializeAtSpecificBlock } from '../build/debug';
 import { retargetAlgorithmVector } from "@@/test-data/retargetAlgoVector";
 
+const beforeAll = globalThis.beforeAll || globalThis.before;
+
 const contractImport = import("../build/debug");
 
 beforeAll(() => setContractImport(contractImport));
@@ -94,7 +96,6 @@ describe("general processHeaders tests", () => {
     expect(Object.keys(updatedPreheaders).length).to.equal(5);
   });
 });
-
 describe("test processHeaders without existing data", () => {
   it("headers in wrong order, should only process block 0", () => {
     // arrange
@@ -183,7 +184,6 @@ describe("test processHeaders faulty headers", () => {
     }
   }
 });
-
 describe("test processHeaders with many headers", () => {
   it("should process and verify BTC headers", () => {
     // arrange
@@ -213,7 +213,6 @@ describe("test processHeaders with many headers", () => {
     expect(() => contract.processHeaders(processData)).to.throw(Error);
   });
 });
-
 describe("test processHeaders with existing state", () => {
   it("should be able to process headers that dont start at block zero via existing state", () => {
     // arrange
@@ -339,7 +338,6 @@ describe("test processHeaders with existing state", () => {
     expect(stateCache.get("headers/0-100")).to.be.undefined
   });
 });
-
 describe("test processHeaders at a difficulty retarget height", () => {
   it("should process headers at first difficulty retarget height", () => {
     // headers 2015, 2016, 2017
