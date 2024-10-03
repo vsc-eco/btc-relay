@@ -8,7 +8,6 @@ module.exports = {
     "/tests/debug.ts",
     "/tests/vite-env.d.ts",
     "/tests/btc-relay-test.ts",
-    "/tests/retarget-algo-test.ts",
   ],
   testEnvironment: "node",
   extensionsToTreatAsEsm: [".ts"],
