@@ -3,6 +3,7 @@ import { JSON, JSONEncoder } from "assemblyscript-json/assembly";
 import { BigInt } from "as-bigint/assembly"
 import { Value } from 'assemblyscript-json/assembly/JSON';
 
+// maximum preheaders we allow to cache, vsc network cant by design handle too large single keys ('pre-headers')
 const MAX_PREHEADER_SIZE = 1200;
 
 const DIFF_ONE_TARGET = BigInt.fromString('0xffff0000000000000000000000000000000000000000000000000000');
