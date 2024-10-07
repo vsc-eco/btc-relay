@@ -1,1 +1,1 @@
-export { initializeAtSpecificBlock, processHeaders } from "./btc-relay"
+export { initializeAtSpecificBlock, processHeaders, clearPreHeaders } from "./btc-relay"

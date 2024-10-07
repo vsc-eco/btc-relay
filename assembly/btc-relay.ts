@@ -3,6 +3,9 @@ import { JSON, JSONEncoder } from "assemblyscript-json/assembly";
 import { BigInt } from "as-bigint/assembly"
 import { Value } from 'assemblyscript-json/assembly/JSON';
 
+// maximum preheaders we allow to cache, vsc network cant by design handle too large single keys ('pre-headers')
+const MAX_PREHEADER_SIZE = 1200;
+
 const DIFF_ONE_TARGET = BigInt.fromString('0xffff0000000000000000000000000000000000000000000000000000');
 
 const MAX_DIFFICULTY = BigInt.fromString("0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -26,6 +29,18 @@ class DifficultyPeriodParams {
         this.startTimestamp = startTimestamp;
         this.endTimestamp = endTimestamp;
         this.difficulty = difficulty;
+    }
+}
+
+class HighestValidatedHeader {
+    height: i32;
+    blockHeader: string;
+    totalDiff: BigInt;
+
+    constructor(height: i32, blockHeader: string, totalDiff: BigInt) {
+        this.height = height;
+        this.blockHeader = blockHeader;
+        this.totalDiff = totalDiff;
     }
 }
 
@@ -478,6 +493,30 @@ export function convertHeaderToDifficultyPeriodParams(header: string): Difficult
     return new DifficultyPeriodParams(diffUnformatted, timestamp);
 }
 
+export function setHighestValidatedHeader(highestHeight: i32, highestBlockHeader: string, totalDiff: BigInt): void {
+    const blockHeaderHash = Arrays.toHexString(reverseEndianness(hash256(Arrays.fromHexString(highestBlockHeader))))
+    let encoder = new JSONEncoder();
+    encoder.pushObject(null);
+    encoder.setInteger("height", highestHeight);
+    encoder.setString("blockHeader", blockHeaderHash);
+    encoder.setString("totalDiff", totalDiff.toString());
+    encoder.popObject();
+    db.setObject(`highest_validated_header`, encoder.toString());
+}
+
+export function getHighestValidatedHeader(): HighestValidatedHeader | null {
+    const highestValidatedHeader = db.getObject(`highest_validated_header`);
+    if (highestValidatedHeader !== "null") {
+        const parsed = <JSON.Obj>JSON.parse(highestValidatedHeader);
+        return new HighestValidatedHeader(
+            getIntFromJSON(parsed, 'height') as i32,
+            getStringFromJSON(parsed, 'blockHeader'),
+            BigInt.fromString(getStringFromJSON(parsed, 'totalDiff'))
+        );
+    }
+    return null;
+}
+
 // pla: processHeaders only works when you start at block zero, with this function you can start at any arbitrary height, 
 // there probably more optimal ways to do this without initializing the preheaders with a block, but this should be sufficient for now
 export function initializeAtSpecificBlock(initDataString: string): void {
@@ -531,10 +570,21 @@ export function initializeAtSpecificBlock(initDataString: string): void {
     }
 }
 
+export function clearPreHeaders(): void {
+    db.setObject(`pre-headers/main`, "{}");
+}
+
 export function processHeaders(processDataString: string): void {
     const processData = parseProcessData(processDataString);
     const headers: Array<string> = processData.headers;
     const preheaders = getPreheaders();
+
+    // if processData and preheaders in sum are more than X, we should clear the preheaders
+    if (headers.length + preheaders.size > MAX_PREHEADER_SIZE) {
+        throw new Error('Too many headers in memory, please clear preheaders');
+    }
+
+    const highestValidatedHeader = getHighestValidatedHeader();
     const validityDepth = getValidityDepth(DEFAULT_VALIDITY_DEPTH);
 
     for (let i = 0; i < headers.length; ++i) {
@@ -558,20 +608,21 @@ export function processHeaders(processDataString: string): void {
         if (prevBlockStr === '0000000000000000000000000000000000000000000000000000000000000000') {
             prevHeight = -1;
             setLastDifficultyPeriodParams(new DifficultyPeriodParams(diffUnformatted, timestamp));
-        } else {
-            if (preheaders.has(prevBlockStr)) {
-                let blockInfo = preheaders.get(prevBlockStr);
-                if (blockInfo) {
-                    prevDiff = blockInfo.totalDiff;
-                    prevHeight = blockInfo.height as i32;
-                } else {
-                    // pla: because assemblyscript doesnt support 'continue;'
-                    continueLoop = false;
-                }
+        } else if (preheaders.has(prevBlockStr)) {
+            let blockInfo = preheaders.get(prevBlockStr);
+            if (blockInfo) {
+                prevDiff = blockInfo.totalDiff;
+                prevHeight = blockInfo.height as i32;
             } else {
                 // pla: because assemblyscript doesnt support 'continue;'
                 continueLoop = false;
             }
+        } else if (highestValidatedHeader && prevBlockStr === highestValidatedHeader.blockHeader) {
+            prevHeight = highestValidatedHeader.height;
+            prevDiff = highestValidatedHeader.totalDiff;
+        } else {
+            // pla: because assemblyscript doesnt support 'continue;'
+            continueLoop = false;
         }
 
         const currentHeight = prevHeight + 1;
@@ -623,7 +674,7 @@ export function processHeaders(processDataString: string): void {
     if (lastDifficultyPeriodParams.startTimestamp === 0) {
         throw new Error('lastDifficultyPeriodParams.startTimestamp is not set. This error should never happen.');
     }
-    
+
     const targetDiffValidatedBlocks: Array<Header> = [];
     for (let i = blocksToPush.length - 1; i >= 0; i--) {
         if (blocksToPush[i].height !== 0) {
@@ -645,6 +696,8 @@ export function processHeaders(processDataString: string): void {
     }
 
     let highestHeight = 0;
+    let highestBlockHeader: string = "";
+    let highestTotalDiff = BigInt.from(0);
     for (let i = 0, k = targetDiffValidatedBlocks.length; i < k; ++i) {
         let block = targetDiffValidatedBlocks[i];
         let key = calcKey(block.height);
@@ -663,7 +716,13 @@ export function processHeaders(processDataString: string): void {
 
         if (highestHeight < block.height) {
             highestHeight = block.height;
+            highestBlockHeader = block.raw;
+            highestTotalDiff = block.totalDiff;
         }
+    }
+
+    if (highestBlockHeader !== "") {
+        setHighestValidatedHeader(highestHeight, highestBlockHeader, highestTotalDiff);
     }
 
     let preHeaderKeys = preheaders.keys();

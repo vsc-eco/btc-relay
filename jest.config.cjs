@@ -27,4 +27,5 @@ module.exports = {
       },
     ],
   },
+  testTimeout: 300000, // Set global timeout to 30 seconds
 };

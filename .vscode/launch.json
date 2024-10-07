@@ -15,6 +15,23 @@
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch via npm script",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "run",
+                "debug:live"
+            ],
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/**/*.js"
+            ],
+            "autoAttachChildProcesses": true
         }
     ]
 }
