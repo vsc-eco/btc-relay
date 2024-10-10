@@ -11,6 +11,7 @@ export default defineConfig({
     alias: [
       { find: "@@", replacement: fileURLToPath(new URL(".", import.meta.url)) },
     ],
+    preserveSymlinks: true
   },
   optimizeDeps: {
     esbuildOptions: {
