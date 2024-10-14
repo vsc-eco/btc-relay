@@ -36,8 +36,8 @@ describe("general processHeaders tests", () => {
     // assert
     const updatedPreheaders = stateCache.get("pre-headers/main");
     const updatedHeaders = stateCache.get("headers/0-100");
-    expect(updatedPreheaders).to.equal(JSON.stringify({ ...firstTenBTCBlocks[8], ...firstTenBTCBlocks[9] }));
-    expect(Object.keys(JSON.parse(updatedHeaders)).length).to.equal(9);
+    expect(updatedPreheaders).to.deep.equal({ ...firstTenBTCBlocks[8], ...firstTenBTCBlocks[9] });
+    expect(Object.keys(updatedHeaders).length).to.deep.equal(9);
   });
 
   it("should process and verify BTC headers incrementally", () => {
@@ -65,8 +65,8 @@ describe("general processHeaders tests", () => {
     // assert
     const updatedPreheaders = stateCache.get("pre-headers/main");
     const updatedHeaders = stateCache.get("headers/0-100");
-    expect(updatedPreheaders).to.equal(JSON.stringify({ ...firstTenBTCBlocks[8], ...firstTenBTCBlocks[9] }));
-    expect(Object.keys(JSON.parse(updatedHeaders)).length).to.equal(9);
+    expect(updatedPreheaders).to.deep.equal({ ...firstTenBTCBlocks[8], ...firstTenBTCBlocks[9] });
+    expect(Object.keys(updatedHeaders).length).to.deep.equal(9);
   });
 
   it("should process and verify BTC headers with default validity depth", () => {
@@ -93,8 +93,8 @@ describe("general processHeaders tests", () => {
     finalizeTransaction()
 
     // assert
-    const updatedPreheaders = JSON.parse(stateCache.get("headers/0-100"));
-    expect(Object.keys(updatedPreheaders).length).to.equal(5);
+    const updatedPreheaders = stateCache.get("headers/0-100");
+    expect(Object.keys(updatedPreheaders).length).to.deep.equal(5);
   });
 });
 
@@ -130,8 +130,8 @@ describe("clear preheader test", () => {
     // assert
     const updatedPreheaders = stateCache.get("pre-headers/main");
     const updatedHeaders = stateCache.get("headers/0-100");
-    expect(updatedPreheaders).to.equal(JSON.stringify({ ...firstTenBTCBlocks[8], ...firstTenBTCBlocks[9] }));
-    expect(Object.keys(JSON.parse(updatedHeaders)).length).to.equal(9);
+    expect(updatedPreheaders).to.deep.equal({ ...firstTenBTCBlocks[8], ...firstTenBTCBlocks[9] });
+    expect(Object.keys(updatedHeaders).length).to.equal(9);
   });
 });
 
@@ -152,7 +152,7 @@ describe("test processHeaders without existing data", () => {
     executeProcessHeaders(contract, testHeaders, 0, 0, 1);
 
     // assert
-    const createdCache = JSON.parse(stateCache.get("headers/0-100"));
+    const createdCache = stateCache.get("headers/0-100");
     expect(Object.keys(createdCache).length === 1).to.be.true;
     expect(createdCache["0"]).to.not.be.undefined;
     expect(createdCache["1"]).to.be.undefined;
@@ -179,7 +179,7 @@ describe("test processHeaders without existing data", () => {
     executeProcessHeaders(contract, testHeaders, 5, 5, 0);
 
     // assert
-    const createdCache = JSON.parse(stateCache.get("headers/0-100"));
+    const createdCache = stateCache.get("headers/0-100");
     expect(Object.keys(createdCache).length === 4).to.be.true;
   });
 });
@@ -214,7 +214,7 @@ describe("test processHeaders faulty headers", () => {
     } else {
       it(`should only process the good headers`, () => {
         executeProcessHeaders(contract, [header0, faultyHeader, header2], 0, 0, 1);
-        const createdCache = JSON.parse(stateCache.get("headers/0-100"));
+        const createdCache = stateCache.get("headers/0-100");
 
         // expect only header0 to be included, corrupted headers in the first half of the raw data will not be processed
         expect(Object.keys(createdCache).length === 1).to.be.true;
@@ -237,8 +237,8 @@ describe("test processHeaders with many headers", () => {
     // assert
     const updatedHeaders0To100 = stateCache.get("headers/0-100");
     const updatedHeaders100To200 = stateCache.get("headers/100-200");
-    assert.isTrue(areObjectsEqual(JSON.parse(updatedHeaders0To100), headers0to100))
-    assert.isTrue(areObjectsEqual(JSON.parse(updatedHeaders100To200), headers100to200))
+    expect(updatedHeaders0To100).to.deep.equal(headers0to100);
+    expect(updatedHeaders100To200).to.deep.equal(headers100to200);
   });
 
   it("should not process headers, because block zero wasnt provided", () => {
@@ -292,14 +292,14 @@ describe("test processHeaders with existing state", () => {
       "6": "01000000fc33f596f822a0a1951ffdbf2a897b095636ad871707bf5d3162729b00000000379dfb96a5ea8c81700ea4ac6b97ae9a9312b2d4301a29580e924ee6761a2520adc46649ffff001d189c4c97",
       "5": "0100000085144a84488ea88d221c8bd6c059da090e88f8a2c99690ee55dbba4e00000000e11c48fecdd9e72510ca84f023370c9a38bf91ac5cae88019bee94d24528526344c36649ffff001d1d03e477",
     }
-    stateCache.set("pre-headers/main", JSON.stringify(preheaders5to7));
-    stateCache.set("headers/0-100", JSON.stringify(headers5to7));
-    stateCache.set("validity_depth", JSON.stringify({ validity_depth: "0" }));
-    const difficultyParams = JSON.stringify({
+    stateCache.set("pre-headers/main", preheaders5to7);
+    stateCache.set("headers/0-100", headers5to7);
+    stateCache.set("validity_depth", { validity_depth: "0" });
+    const difficultyParams = {
       startTimestamp: 1349226660, // TIMESTAMP OF BLOCK 0
       endTimestamp: 0,
       difficulty: "26959535291011309493156476344723991336010898738574164086137773096960"
-    })
+    }
     stateCache.set("last_difficulty_period_params", difficultyParams)
 
     // headers 8 and 9
@@ -317,7 +317,7 @@ describe("test processHeaders with existing state", () => {
     finalizeTransaction()
 
     // assert
-    const updatedCache = JSON.parse(stateCache.get("headers/0-100"))
+    const updatedCache = stateCache.get("headers/0-100")
     expect("8" in updatedCache).to.be.true
     expect("9" in updatedCache).to.be.true
     expect("10" in updatedCache).to.be.false
@@ -346,7 +346,7 @@ describe("test processHeaders with existing state", () => {
     finalizeTransaction()
 
     // assert
-    const updatedCache = JSON.parse(stateCache.get("headers/0-100"))
+    const updatedCache = stateCache.get("headers/0-100")
     expect("8" in updatedCache).to.be.true
     expect("9" in updatedCache).to.be.false
     expect("10" in updatedCache).to.be.false
@@ -381,7 +381,7 @@ describe("test processHeaders with existing state", () => {
 
     // assert
     const updatedPreheaders = stateCache.get("pre-headers/main");
-    expect(updatedPreheaders).to.equal(JSON.stringify(firstTenBTCBlocks[0]));
+    expect(updatedPreheaders).to.deep.equal(firstTenBTCBlocks[0]);
     expect(stateCache.get("headers/0-100")).to.be.undefined
   });
 });
@@ -399,7 +399,7 @@ describe("test processHeaders at a difficulty retarget height", () => {
     executeProcessHeaders(contract, testheaders, 2015, 2015, 0)
 
     // assert
-    const updatedCache = JSON.parse(stateCache.get("headers/2000-2100"))
+    const updatedCache = stateCache.get("headers/2000-2100")
     expect("2015" in updatedCache).to.be.true
     expect("2016" in updatedCache).to.be.true
     expect("2017" in updatedCache).to.be.true
@@ -431,20 +431,20 @@ describe("test processHeaders at a difficulty retarget height", () => {
     finalizeTransaction()
 
     // assert
-    const updatedCache500to600 = JSON.parse(stateCache.get("headers/201500-201600"))
-    const updatedCache600To700 = JSON.parse(stateCache.get("headers/201600-201700"))
+    const updatedCache500to600 = stateCache.get("headers/201500-201600")
+    const updatedCache600To700 = stateCache.get("headers/201600-201700")
     expect("201598" in updatedCache500to600).to.be.true
     expect("201599" in updatedCache500to600).to.be.true
     expect("201600" in updatedCache600To700).to.be.true
     expect("201601" in updatedCache600To700).to.be.true
 
     const updatedDifficultyParams = stateCache.get("last_difficulty_period_params")
-    const expectedDifficultyParams = JSON.stringify({
+    const expectedDifficultyParams = {
       startTimestamp: 1349226660, // TIMESTAMP OF BLOCK 201600
       endTimestamp: 0,
       difficulty: "8825807680257895657479991196220989276506275995152177228848553"
-    })
-    expect(updatedDifficultyParams).to.equal(expectedDifficultyParams)
+    }
+    expect(updatedDifficultyParams).to.deep.equal(expectedDifficultyParams)
   });
 });
 
@@ -460,37 +460,11 @@ function executeProcessHeaders(contract: any, headers: Array<string>, startHeigh
   });
 
   contract.initializeAtSpecificBlock(initData);
+  finalizeTransaction()
 
   const processData = JSON.stringify({
     headers: headers.slice(1)
   });
-
   contract.processHeaders(processData);
   finalizeTransaction()
-}
-
-function areObjectsEqual(obj1: any, obj2: any): boolean {
-  const keys1 = Object.keys(obj1);
-  const keys2 = Object.keys(obj2);
-
-  if (keys1.length !== keys2.length) {
-    return false;
-  }
-
-  for (const key of keys1) {
-    const val1 = obj1[key];
-    const val2 = obj2[key];
-
-    if (typeof val1 === 'object' && val1 != null && typeof val2 === 'object' && val2 != null) {
-      if (!areObjectsEqual(val1, val2)) {
-        return false;
-      }
-    } else {
-      if (val1 !== val2) {
-        return false;
-      }
-    }
-  }
-
-  return true;
 }
