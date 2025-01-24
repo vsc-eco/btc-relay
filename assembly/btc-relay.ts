@@ -35,12 +35,10 @@ class DifficultyPeriodParams {
 class HighestValidatedHeader {
     height: i32;
     blockHeader: string;
-    totalDiff: BigInt;
 
-    constructor(height: i32, blockHeader: string, totalDiff: BigInt) {
+    constructor(height: i32, blockHeader: string) {
         this.height = height;
         this.blockHeader = blockHeader;
-        this.totalDiff = totalDiff;
     }
 }
 
@@ -51,7 +49,6 @@ export class Header {
     merkleRoot: Uint8Array;
     diff: BigInt;
     diffUnformatted: BigInt;
-    totalDiff: BigInt;
     height: i32;
     raw: string;
 
@@ -61,7 +58,6 @@ export class Header {
         merkleRoot: Uint8Array,
         diff: BigInt,
         diffUnformatted: BigInt,
-        totalDiff: BigInt,
         height: i32,
         raw: string
     ) {
@@ -70,7 +66,6 @@ export class Header {
         this.merkleRoot = merkleRoot;
         this.diff = diff;
         this.diffUnformatted = diffUnformatted;
-        this.totalDiff = totalDiff;
         this.height = height;
         this.raw = raw;
     }
@@ -82,7 +77,6 @@ export class Header {
         encoder.setString("merkleRoot", Arrays.toHexString(this.merkleRoot));
         encoder.setString("diff", this.diff.toString());
         encoder.setString("diffUnformatted", this.diffUnformatted.toString());
-        encoder.setString("totalDiff", this.totalDiff.toString());
         encoder.setInteger("height", this.height);
         encoder.setString("raw", this.raw);
         return encoder;
@@ -200,7 +194,6 @@ export function getPreheaders(): Map<string, Header> {
                     Arrays.fromHexString(getStringFromJSON(<JSON.Obj>obj, "merkleRoot")),
                     BigInt.from(getStringFromJSON(<JSON.Obj>obj, "diff")),
                     BigInt.from(getStringFromJSON(<JSON.Obj>obj, "diffUnformatted")),
-                    BigInt.from(getStringFromJSON(<JSON.Obj>obj, "totalDiff")),
                     getIntFromJSON(<JSON.Obj>obj, "height") as i32,
                     getStringFromJSON(<JSON.Obj>obj, "raw")
                 );
@@ -371,7 +364,7 @@ export function isZeroFilled(block: Uint8Array): bool {
     return true;
 }
 
-export function sortPreheadersByTotalDiff(preheaders: Map<string, Header>): Array<Map<string, Header>> {
+export function sortPreheadersByHeight(preheaders: Map<string, Header>): Array<Map<string, Header>> {
     // Convert Map to an Array of values with their keys
     let entries: Array<Map<string, Header>> = new Array<Map<string, Header>>();
     let keys = preheaders.keys();
@@ -387,8 +380,8 @@ export function sortPreheadersByTotalDiff(preheaders: Map<string, Header>): Arra
 
     // Sort the array using comparator function
     entries.sort((a: Map<string, Header>, b: Map<string, Header>): i32 => {
-        if (a.values()[0].totalDiff > b.values()[0].totalDiff) return 1;
-        if (a.values()[0].totalDiff < b.values()[0].totalDiff) return -1;
+        if (a.values()[0].height > b.values()[0].height) return 1;
+        if (a.values()[0].height < b.values()[0].height) return -1;
         return 0;
     });
 
@@ -493,13 +486,12 @@ export function convertHeaderToDifficultyPeriodParams(header: string): Difficult
     return new DifficultyPeriodParams(diffUnformatted, timestamp);
 }
 
-export function setHighestValidatedHeader(highestHeight: i32, highestBlockHeader: string, totalDiff: BigInt): void {
+export function setHighestValidatedHeader(highestHeight: i32, highestBlockHeader: string): void {
     const blockHeaderHash = Arrays.toHexString(reverseEndianness(hash256(Arrays.fromHexString(highestBlockHeader))))
     let encoder = new JSONEncoder();
     encoder.pushObject(null);
     encoder.setInteger("height", highestHeight);
     encoder.setString("blockHeader", blockHeaderHash);
-    encoder.setString("totalDiff", totalDiff.toString());
     encoder.popObject();
     db.setObject(`highest_validated_header`, encoder.toString());
 }
@@ -510,8 +502,7 @@ export function getHighestValidatedHeader(): HighestValidatedHeader | null {
         const parsed = <JSON.Obj>JSON.parse(highestValidatedHeader);
         return new HighestValidatedHeader(
             getIntFromJSON(parsed, 'height') as i32,
-            getStringFromJSON(parsed, 'blockHeader'),
-            BigInt.fromString(getStringFromJSON(parsed, 'totalDiff'))
+            getStringFromJSON(parsed, 'blockHeader')
         );
     }
     return null;
@@ -552,7 +543,6 @@ export function initializeAtSpecificBlock(initDataString: string): void {
             merkleRoot,
             diff,
             diffUnformatted,
-            diff.add(initData.previousDifficulty),
             initData.height,
             initData.startHeader
         );
@@ -599,7 +589,6 @@ export function processHeaders(processDataString: string): void {
         const diff = validateHeaderChain(decodeHex);
         const diffUnformatted = extractTarget(decodeHex);
 
-        let prevDiff: BigInt = BigInt.from(0);
         let prevHeight: i32 = 0;
 
         const prevBlockStr = Arrays.toHexString(prevBlock)
@@ -611,7 +600,6 @@ export function processHeaders(processDataString: string): void {
         } else if (preheaders.has(prevBlockStr)) {
             let blockInfo = preheaders.get(prevBlockStr);
             if (blockInfo) {
-                prevDiff = blockInfo.totalDiff;
                 prevHeight = blockInfo.height as i32;
             } else {
                 // pla: because assemblyscript doesnt support 'continue;'
@@ -619,7 +607,6 @@ export function processHeaders(processDataString: string): void {
             }
         } else if (highestValidatedHeader && prevBlockStr === highestValidatedHeader.blockHeader) {
             prevHeight = highestValidatedHeader.height;
-            prevDiff = highestValidatedHeader.totalDiff;
         } else {
             // pla: because assemblyscript doesnt support 'continue;'
             continueLoop = false;
@@ -634,7 +621,6 @@ export function processHeaders(processDataString: string): void {
                 merkleRoot,
                 diff,
                 diffUnformatted,
-                diff.add(prevDiff),
                 currentHeight,
                 rawBH
             );
@@ -643,7 +629,7 @@ export function processHeaders(processDataString: string): void {
         }
     }
 
-    let sortedPreheaders: Array<Map<string, Header>> = sortPreheadersByTotalDiff(preheaders);
+    let sortedPreheaders: Array<Map<string, Header>> = sortPreheadersByHeight(preheaders);
     const topHeader: Uint8Array = Arrays.fromHexString(sortedPreheaders[sortedPreheaders.length - 1].keys()[0]);
     let blocksToPush: Array<Header> = [];
     let curDepth: i32 = 0;
@@ -697,7 +683,6 @@ export function processHeaders(processDataString: string): void {
 
     let highestHeight = 0;
     let highestBlockHeader: string = "";
-    let highestTotalDiff = BigInt.from(0);
     for (let i = 0, k = targetDiffValidatedBlocks.length; i < k; ++i) {
         let block = targetDiffValidatedBlocks[i];
         let key = calcKey(block.height);
@@ -717,12 +702,11 @@ export function processHeaders(processDataString: string): void {
         if (highestHeight < block.height) {
             highestHeight = block.height;
             highestBlockHeader = block.raw;
-            highestTotalDiff = block.totalDiff;
         }
     }
 
     if (highestBlockHeader !== "") {
-        setHighestValidatedHeader(highestHeight, highestBlockHeader, highestTotalDiff);
+        setHighestValidatedHeader(highestHeight, highestBlockHeader);
     }
 
     let preHeaderKeys = preheaders.keys();
