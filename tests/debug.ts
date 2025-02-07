@@ -1,5 +1,17 @@
+import { reset, setContractImport } from "@vsc.eco/contract-testing-utils";
+
 const tests = import.meta.glob("./**/*.ts");
-const ignoreFiles = ["./mocks.ts", "./debug.ts", "./vite-env.d.ts",];
+// const tests = import.meta.glob("./**/tx-simulation.ts");
+// const tests = import.meta.glob("./**/btc-relay-test.ts");
+const ignoreFiles = ["./debug.ts", "./vite-env.d.ts",];
+
+const beforeAll = globalThis.beforeAll || globalThis.before;
+
+const contractImport = import("../build/debug");
+
+beforeAll(() => setContractImport(contractImport));
+
+beforeEach(reset);
 
 await Promise.all(
   Object.entries(tests).map(async ([path, module]) => {

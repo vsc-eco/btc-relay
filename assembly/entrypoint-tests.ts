@@ -10,6 +10,6 @@ export function wrapperExtractTarget(header: string) : string {
 
 export function wrapperRetargetAlgorithm(previousTarget: string, firstTimestamp: number, secondTimestamp: number) : string {
     const prev = BigInt.fromString(previousTarget)
-    const test = btcRelay.retargetAlgorithm(prev, firstTimestamp as i64, secondTimestamp as i64);
+    const test = btcRelay.retargetAlgorithm(prev, BigInt.from(firstTimestamp), BigInt.from(secondTimestamp));
     return test.toString();
 }

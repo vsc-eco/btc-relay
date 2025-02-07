@@ -1,7 +1,9 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
   moduleFileExtensions: ["js", "json", "ts"],
-  testRegex: "tests/.*.ts$",
+  // testRegex: "tests/.*.ts$",
+  // testRegex: ["tests/long-term-test.ts"], // TMP
+  testRegex: ["btc-relay-test.ts"], // TMP
   testPathIgnorePatterns: [
     "/node_modules/",
     "/tests/mocks.ts",
@@ -28,4 +30,5 @@ module.exports = {
     ],
   },
   testTimeout: 300000, // Set global timeout to 30 seconds
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
 };

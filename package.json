@@ -8,6 +8,7 @@
     "assemblyscript": "^0.27.27",
     "assemblyscript-json": "^1.1.0",
     "asyncify-wasm": "^1.2.1",
+    "axios": "^1.7.9",
     "cli-progress": "^3.12.0",
     "crypto-js": "^4.2.0",
     "deep-equal": "^2.2.3",

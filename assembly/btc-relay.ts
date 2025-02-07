@@ -1,4 +1,4 @@
-import { db, Arrays, SystemAPI, Crypto, reverseEndianness } from '@vsc.eco/sdk/assembly';
+import { db, Arrays, SystemAPI, Crypto, reverseEndianness, console } from '@vsc.eco/sdk/assembly';
 import { JSON, JSONEncoder } from "assemblyscript-json/assembly";
 import { BigInt } from "as-bigint/assembly"
 import { Value } from 'assemblyscript-json/assembly/JSON';
@@ -17,6 +17,8 @@ const RETARGET_PERIOD = BigInt.from(1209600);
 const RETARGET_PERIOD_BLOCKS = 2016;
 
 const headersState: Map<string, Map<i64, string>> = new Map<string, Map<i64, string>>();
+
+const debugMode = true;
 
 class DifficultyPeriodParams {
     startTimestamp: BigInt;
@@ -55,7 +57,7 @@ class RetargetAlgorithmResult {
 }
 
 // pla: for serialization and storage in the db, we convert BigInt to string and Uint8Array to hex string
-export class Header {
+class Header {
     prevBlock: Uint8Array;
     timestamp: BigInt;
     merkleRoot: Uint8Array;
@@ -95,7 +97,7 @@ export class Header {
     }
 }
 
-export class InitData {
+class InitData {
     startHeader: string;
     height: i32;
     previousDifficulty: BigInt;
@@ -111,7 +113,7 @@ export class InitData {
     }
 }
 
-export class ProcessData {
+class ProcessData {
     headers: Array<string>;
 
     constructor(headers: Array<string>) {
@@ -174,7 +176,7 @@ export function sha256(param: Uint8Array): Uint8Array {
 
     const result = <JSON.Obj>JSON.parse(SystemAPI.call('crypto.sha256', obj.stringify()))
     if (result.getString('result')!.isString) {
-        return Arrays.fromHexString(result.getString('result')!.valueOf()!)
+        return Arrays.fromHexString(result.getString('result')!.valueOf())
     } else {
         //Never should happen
         throw new Error('Crypto - incorrect binding response')
@@ -585,13 +587,17 @@ export function passesRetargetProcess(block: Header, lastDifficultyPeriodParams:
         }
     }
 
-    console.log(block.targetUnformatted.toString())
-    console.log(lastDifficultyPeriodParams.target.toString())
     if (block.targetUnformatted.eq(lastDifficultyPeriodParams.target)){
         return new RetargetAlgorithmResult(lastDifficultyPeriodParams, difficultyParamsChanged, true);
     }
 
     return new RetargetAlgorithmResult(lastDifficultyPeriodParams, false, false);
+}
+
+export function debugLog(message: string): void {
+    if (debugMode) {
+        console.logToFile(message);
+    }
 }
 
 // pla: processHeaders only works when you start at block zero, with this function you can start at any arbitrary height, 
@@ -657,6 +663,7 @@ export function processHeaders(processDataString: string): void {
 
     // if processData and preheaders in sum are more than X, we should clear the preheaders
     if (headers.length + preheaders.size > MAX_PREHEADER_SIZE) {
+        debugLog('Too many headers in memory. Preheaders need to be cleared.');
         throw new Error('Too many headers in memory, please clear preheaders');
     }
 
@@ -664,6 +671,7 @@ export function processHeaders(processDataString: string): void {
     const validityDepth = getValidityDepth(DEFAULT_VALIDITY_DEPTH);
 
     for (let i = 0; i < headers.length; ++i) {
+        debugLog('Processing preheader ' + i.toString());
         let rawBH = headers[i];
         const decodeHex = Arrays.fromHexString(rawBH);
         const prevBlockLE = extractPrevBlockLE(decodeHex);
@@ -701,6 +709,7 @@ export function processHeaders(processDataString: string): void {
         const currentHeight = prevHeight + 1;
 
         if (continueLoop) {
+            debugLog('Successfully added preheader ' + currentHeight.toString() + '/' + i.toString() + ' to preheaders');
             const decodedHeader = new Header(
                 prevBlock,
                 timestamp.mul(1000),
@@ -721,6 +730,7 @@ export function processHeaders(processDataString: string): void {
     let curDepth: i32 = 0;
     let prevBlock: Uint8Array | null = null;
 
+    debugLog('Verifying the chain of blocks by previous block header');
     while (true) {
         if (!prevBlock) {
             prevBlock = topHeader;
@@ -732,26 +742,31 @@ export function processHeaders(processDataString: string): void {
 
             // pla: skipping last x blocks below validity_depth            
             if (curDepth >= validityDepth) {
+                debugLog('Verified block ' + currentHeader.height.toString() + ' passes validity depth');
                 blocksToPush.push(currentHeader);
             } else {
                 curDepth = curDepth + 1;
             }
             prevBlock = currentHeader.prevBlock;
         } else {
+            debugLog('Could not find preheader for block ' + curDepth.toString() + ' chain is broken and we only add blocks verified by the chain');
             break;
         }
     }
 
     let lastDifficultyPeriodParams: DifficultyPeriodParams = getLastDifficultyPeriodParams();
     if (lastDifficultyPeriodParams.startTimestamp.eq(0)) {
+        debugLog('lastDifficultyPeriodParams.startTimestamp is not set. This error should never happen.');
         throw new Error('lastDifficultyPeriodParams.startTimestamp is not set. This error should never happen.');
     }
 
     let highestHeight = 0;
     let highestBlockHeader: string = "";
+    debugLog('Verifying the chain of blocks by height and target difficulty');
     for (let i = 0, k = blocksToPush.length; i < k; ++i) {
         let block = blocksToPush[i];
         let key = calcKey(block.height);
+        debugLog('Processing block ' + block.height.toString());
 
         //Get headers in memory if not available
         if (!headersState.has(key)) {
@@ -771,23 +786,23 @@ export function processHeaders(processDataString: string): void {
             if (retargetProcessResult.blockPasses) {
                 if (retargetProcessResult.difficultyPeriodParamsChanged) {
                     lastDifficultyPeriodParams = retargetProcessResult.lastDifficultyPeriodParams;
-                    console.log('Difficulty retargeted');
-                    console.log(lastDifficultyPeriodParams.difficultyHumanReadable)
-                    console.log('-----')
+                    debugLog('Difficulty period params changed ' + lastDifficultyPeriodParams.difficultyHumanReadable);
                     setLastDifficultyPeriodParams(lastDifficultyPeriodParams);
                 }
 
+                debugLog('Block ' + block.height.toString() + ' passes retarget process|' + ' blocks difficulty: ' + targetToDifficulty(block.targetUnformatted) + ' target of period: ' + targetToDifficulty(lastDifficultyPeriodParams.target));
                 highestHeight = block.height;
                 highestBlockHeader = block.raw;
             } else {
                 // theres a problem.. we should clear the preheaders
                 // clearPreHeaders();
-                console.error('Header does not pass retarget process');
+                debugLog('Block does not pass retarget process');
             }
         }
     }
 
     if (highestBlockHeader !== "") {
+        debugLog('New highest validated block found| height: ' + highestHeight.toString() + ' header: ' + highestBlockHeader);
         setHighestValidatedHeader(highestHeight, highestBlockHeader);
     }
 
@@ -797,6 +812,7 @@ export function processHeaders(processDataString: string): void {
         let key = unchecked(preHeaderKeys[i]);
         let value = preheaders.get(key);
         if (highestHeight >= value.height + validityDepth) {
+            debugLog('Deleting preheader ' + value.height.toString());
             preheaders.delete(unchecked(key));
         }
     }
@@ -805,11 +821,13 @@ export function processHeaders(processDataString: string): void {
     for (let i = 0, k = headerStateKeys.length; i < k; ++i) {
         let key = unchecked(headerStateKeys[i]);
         if (headersState.has(key)) {
+            debugLog('Adding headers to db for key ' + key);
             let val = headersState.get(key);
             const serializedHeaderState = serializeHeaderState(val);
             db.setObject(`headers/${key}`, serializedHeaderState);
         }
     }
     db.setObject(`pre-headers/main`, serializePreHeaders(preheaders));
+    debugLog('----------------------- Finished execution -----------------------');
 }
 
