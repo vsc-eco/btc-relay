@@ -50,12 +50,12 @@ export async function getBlockHeader(height): Promise<[header: any, cacheHit :bo
 
     // If the header is already cached, return it.
     if (cacheData.hasOwnProperty(height)) {
-        console.log(`Cache hit for block ${height}`);
+        // console.log(`Cache hit for block ${height}`);
         return [cacheData[height], true];
     }
 
     // Otherwise, fetch the header and update the cache.
-    console.log(`Cache miss for block ${height}. Fetching...`);
+    // console.log(`Cache miss for block ${height}. Fetching...`);
     const header = await fetchBlockRaw(height);
     cacheData[height] = header;
 

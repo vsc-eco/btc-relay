@@ -307,8 +307,8 @@ export function extractTarget(header: Uint8Array): BigInt {
     const mantissaBytes: Uint8Array = header.slice(72, 75);  // 3-byte mantissa
     const exponent: i8 = header[75];  // 1-byte exponent
 
-    // Convert mantissa correctly (it is **big-endian**, so do not reverse)
-    const mantissa: BigInt = bytesToUintBE(mantissaBytes);
+    // Convert mantissa correctly (it is **little-endian**, so we now reverse it)
+    const mantissa: BigInt = bytesToUintLE(mantissaBytes);
 
     // Calculate full target: mantissa * 256^(exponent - 3)
     const shift: i8 = exponent - 3;
@@ -541,6 +541,38 @@ export function retargetAlgorithm(previousTarget: BigInt, firstTimestamp: BigInt
     return retargetedDiff;
 }
 
+export function retargetAlgorithm2(
+    previousTarget: BigInt,  // This is the current target (e.g., DIFF_ONE_TARGET for difficulty 1)
+    firstTimestamp: BigInt,
+    secondTimestamp: BigInt
+  ): BigInt {
+    // Define bounds for elapsed time
+    const lowerBound: BigInt = RETARGET_PERIOD.div(BigInt.from(4));
+    const upperBound: BigInt = RETARGET_PERIOD.mul(BigInt.from(4));
+  
+    // Calculate elapsed time in seconds
+    let elapsedTime: BigInt = secondTimestamp.sub(firstTimestamp);
+  
+    // Clamp elapsed time within bounds
+    if (elapsedTime.lt(lowerBound)) {
+      elapsedTime = lowerBound;
+    }
+    if (elapsedTime.gt(upperBound)) {
+      elapsedTime = upperBound;
+    }
+  
+    // Correct calculation:
+    // new_target = previousTarget * (actual elapsed time / expected time)
+    let retargetedDiff: BigInt = previousTarget.mul(elapsedTime).div(RETARGET_PERIOD);
+  
+    // Ensure the new target doesn't exceed the maximum target (DIFF_ONE_TARGET)
+    if (retargetedDiff.gt(DIFF_ONE_TARGET)) {
+      retargetedDiff = DIFF_ONE_TARGET;
+    }
+  
+    return retargetedDiff;
+  }
+
 export function convertHeaderToDifficultyPeriodParams(header: string): DifficultyPeriodParams {
     const decodeHex = Arrays.fromHexString(header);
     const timestamp = extractTimestamp(decodeHex);
@@ -581,7 +613,9 @@ export function passesRetargetProcess(block: Header, lastDifficultyPeriodParams:
         }
 
         if (block.height % RETARGET_PERIOD_BLOCKS === 0) {
-            let retargetedDiff = retargetAlgorithm(lastDifficultyPeriodParams.target, lastDifficultyPeriodParams.startTimestamp, lastDifficultyPeriodParams.endTimestamp);
+            debugLog('HITTING THIS')
+            let retargetedDiff = retargetAlgorithm2(lastDifficultyPeriodParams.target, lastDifficultyPeriodParams.startTimestamp, lastDifficultyPeriodParams.endTimestamp);
+            debugLog('MY NEW CALC' + retargetedDiff.toString())
             lastDifficultyPeriodParams = new DifficultyPeriodParams(retargetedDiff, block.timestamp, BigInt.from(0))
             difficultyParamsChanged = true;
         }
@@ -631,7 +665,7 @@ export function initializeAtSpecificBlock(initDataString: string): void {
 
         const decodedHeader = new Header(
             prevBlock,
-            timestamp.mul(1000),
+            timestamp,
             merkleRoot,
             target,
             targetUnformatted,
@@ -671,7 +705,7 @@ export function processHeaders(processDataString: string): void {
     const validityDepth = getValidityDepth(DEFAULT_VALIDITY_DEPTH);
 
     for (let i = 0; i < headers.length; ++i) {
-        debugLog('Processing preheader ' + i.toString());
+        debugLog('Processing preheader index: ' + i.toString());
         let rawBH = headers[i];
         const decodeHex = Arrays.fromHexString(rawBH);
         const prevBlockLE = extractPrevBlockLE(decodeHex);
@@ -682,7 +716,7 @@ export function processHeaders(processDataString: string): void {
         const headerHash = hash256(decodeHex);
         const target = validateHeaderChain(decodeHex);
         const targetUnformatted = extractTarget(decodeHex);
-
+        
         let prevHeight: i32 = 0;
 
         const prevBlockStr = Arrays.toHexString(prevBlock)
@@ -709,10 +743,10 @@ export function processHeaders(processDataString: string): void {
         const currentHeight = prevHeight + 1;
 
         if (continueLoop) {
-            debugLog('Successfully added preheader ' + currentHeight.toString() + '/' + i.toString() + ' to preheaders');
+            debugLog('Successfully added preheader height:' + currentHeight.toString() + ', insert index ' + i.toString() + ' to preheaders');
             const decodedHeader = new Header(
                 prevBlock,
-                timestamp.mul(1000),
+                timestamp,
                 merkleRoot,
                 target,
                 targetUnformatted,
@@ -727,7 +761,7 @@ export function processHeaders(processDataString: string): void {
     let sortedPreheaders: Array<Map<string, Header>> = sortPreheadersByHeight(preheaders);
     const topHeader: Uint8Array = Arrays.fromHexString(sortedPreheaders[sortedPreheaders.length - 1].keys()[0]);
     let blocksToPush: Array<Header> = [];
-    let curDepth: i32 = 0;
+    let curDepth: i32 = 1;
     let prevBlock: Uint8Array | null = null;
 
     debugLog('Verifying the chain of blocks by previous block header');
@@ -737,9 +771,9 @@ export function processHeaders(processDataString: string): void {
         }
 
         let prevBlockStr = Arrays.toHexString(prevBlock);
+
         if (preheaders.has(prevBlockStr)) {
             let currentHeader = preheaders.get(prevBlockStr);
-
             // pla: skipping last x blocks below validity_depth            
             if (curDepth >= validityDepth) {
                 debugLog('Verified block ' + currentHeader.height.toString() + ' passes validity depth');
@@ -748,8 +782,11 @@ export function processHeaders(processDataString: string): void {
                 curDepth = curDepth + 1;
             }
             prevBlock = currentHeader.prevBlock;
+        } else if (blocksToPush.length == preheaders.keys().length + 1 - validityDepth) {
+            debugLog('Added all preheaders allowed for specified validity depth')
+            break;
         } else {
-            debugLog('Could not find preheader for block ' + curDepth.toString() + ' chain is broken and we only add blocks verified by the chain');
+            debugLog('Could not find preheader for block ' + curDepth.toString() + '. This message should not occur in normal operation');
             break;
         }
     }
@@ -760,24 +797,19 @@ export function processHeaders(processDataString: string): void {
         throw new Error('lastDifficultyPeriodParams.startTimestamp is not set. This error should never happen.');
     }
 
-    let highestHeight = 0;
+    let highestHeight = highestValidatedHeader !== null ? highestValidatedHeader.height: 0;
     let highestBlockHeader: string = "";
     debugLog('Verifying the chain of blocks by height and target difficulty');
-    for (let i = 0, k = blocksToPush.length; i < k; ++i) {
+    for (let i = blocksToPush.length - 1; i > 0; i--) {
         let block = blocksToPush[i];
         let key = calcKey(block.height);
         debugLog('Processing block ' + block.height.toString());
 
         //Get headers in memory if not available
         if (!headersState.has(key)) {
+            debugLog('Pulling confirmed headers into memory ' + key)
             const pulledHeaders = getHeaders(key);
             headersState.set(key, pulledHeaders);
-        }
-
-        //Only override if not
-        let stateForKey = headersState.get(key);
-        if (stateForKey && !stateForKey.has(block.height)) {
-            stateForKey.set(block.height, block.raw);
         }
 
         if (highestHeight < block.height) {
@@ -786,17 +818,26 @@ export function processHeaders(processDataString: string): void {
             if (retargetProcessResult.blockPasses) {
                 if (retargetProcessResult.difficultyPeriodParamsChanged) {
                     lastDifficultyPeriodParams = retargetProcessResult.lastDifficultyPeriodParams;
-                    debugLog('Difficulty period params changed ' + lastDifficultyPeriodParams.difficultyHumanReadable);
                     setLastDifficultyPeriodParams(lastDifficultyPeriodParams);
+                    debugLog('Difficulty period params changed ' + lastDifficultyPeriodParams.difficultyHumanReadable);
                 }
 
                 debugLog('Block ' + block.height.toString() + ' passes retarget process|' + ' blocks difficulty: ' + targetToDifficulty(block.targetUnformatted) + ' target of period: ' + targetToDifficulty(lastDifficultyPeriodParams.target));
                 highestHeight = block.height;
                 highestBlockHeader = block.raw;
+
+                // Add validated header if retarget passes
+                let stateForKey = headersState.get(key);
+
+                if (stateForKey && !stateForKey.has(block.height)) {
+                    stateForKey.set(block.height, block.raw);
+                } else {
+                    throw new Error('Block already added, this error should not occur')
+                }
             } else {
                 // theres a problem.. we should clear the preheaders
                 // clearPreHeaders();
-                debugLog('Block does not pass retarget process');
+                debugLog('Block ' + block.height.toString() + ' does NOT pass retarget process|' + ' blocks difficulty: ' + targetToDifficulty(block.targetUnformatted) + ' target of period: ' + targetToDifficulty(lastDifficultyPeriodParams.target));
             }
         }
     }
@@ -806,19 +847,21 @@ export function processHeaders(processDataString: string): void {
         setHighestValidatedHeader(highestHeight, highestBlockHeader);
     }
 
-    let preHeaderKeys = preheaders.keys();
-
-    for (let i = 0, k = preHeaderKeys.length; i < k; ++i) {
-        let key = unchecked(preHeaderKeys[i]);
-        let value = preheaders.get(key);
-        if (highestHeight >= value.height + validityDepth) {
-            debugLog('Deleting preheader ' + value.height.toString());
-            preheaders.delete(unchecked(key));
+    if (highestHeight > validityDepth) {
+        let preHeaderKeys = preheaders.keys();
+    
+        for (let i = 0; i < preHeaderKeys.length; ++i) {        
+            let key = unchecked(preHeaderKeys[i]);
+            let value = preheaders.get(key);
+            if (highestHeight >= value.height) {
+                debugLog('Deleting preheader ' + value.height.toString());
+                preheaders.delete(unchecked(key));
+            }
         }
-    }
+    } 
 
     let headerStateKeys = headersState.keys();
-    for (let i = 0, k = headerStateKeys.length; i < k; ++i) {
+    for (let i = 0; i < headerStateKeys.length; ++i) {
         let key = unchecked(headerStateKeys[i]);
         if (headersState.has(key)) {
             debugLog('Adding headers to db for key ' + key);

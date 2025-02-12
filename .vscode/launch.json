@@ -48,7 +48,9 @@
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ],
-            "autoAttachChildProcesses": true
+            "autoAttachChildProcesses": true,
+            "console": "internalConsole", // or "integratedTerminal"
+            "outputCapture": "std"
         }
     ]
 }
