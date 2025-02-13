@@ -11,6 +11,7 @@ const MAX_REQUEST_RETRIES = 5; // how many times we retry a btc rpc request
 const DELAY_BETWEEN_FAILED_CALLS = 600; // how much time at minimum we wait between btc rpc calls
 const MAX_REQUEST_FAIL_COUNTER = 10; // how often we can fail a btc rpc  request before we stop the program
 const BTC_RPC = 'https://bitcoin-mainnet.public.blastapi.io'
+const ENABLE_INFO_LOGS = true
 
 // Dummy sleep function
 export function sleep(ms) {
@@ -50,12 +51,16 @@ export async function getBlockHeader(height): Promise<[header: any, cacheHit :bo
 
     // If the header is already cached, return it.
     if (cacheData.hasOwnProperty(height)) {
-        // console.log(`Cache hit for block ${height}`);
+        if (ENABLE_INFO_LOGS) {
+            console.log(`Cache hit for block ${height}`);
+        }
         return [cacheData[height], true];
     }
 
     // Otherwise, fetch the header and update the cache.
-    // console.log(`Cache miss for block ${height}. Fetching...`);
+    if (ENABLE_INFO_LOGS) {
+        console.log(`Cache miss for block ${height}. Fetching...`);
+    }
     const header = await fetchBlockRaw(height);
     cacheData[height] = header;
 

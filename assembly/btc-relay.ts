@@ -16,6 +16,9 @@ const RETARGET_PERIOD = BigInt.from(1209600);
 
 const RETARGET_PERIOD_BLOCKS = 2016;
 
+// allow retarget calculation to be slightly off by truncating digits
+const RETARGET_VALIDATION_PRECISION: u32 = 4; // e.g. round up to the nearest 10^3
+
 const headersState: Map<string, Map<i64, string>> = new Map<string, Map<i64, string>>();
 
 const debugMode = true;
@@ -520,28 +523,7 @@ export function getLastDifficultyPeriodParams(): DifficultyPeriodParams {
 }
 
 // retarget algo implementation of https://github.com/bitcoin/bitcoin/blob/master/src/pow.cpp#L49
-export function retargetAlgorithm(previousTarget: BigInt, firstTimestamp: BigInt, secondTimestamp: BigInt): BigInt {
-    let elapsedTime: BigInt = secondTimestamp.sub(firstTimestamp);
-    const rp: BigInt = RETARGET_PERIOD;
-    const lowerBound: BigInt = rp.div(4 as i64);
-    const upperBound: BigInt = rp.mul(4 as i64);
-    // Normalize ratio to factor of 4 if very long or very short
-    if (elapsedTime < lowerBound) {
-        elapsedTime = lowerBound;
-    }
-    if (elapsedTime > upperBound) {
-        elapsedTime = upperBound;
-    }
-
-    let retargetedDiff = previousTarget.mul(elapsedTime).div(rp)
-
-    if (retargetedDiff > DIFF_ONE_TARGET)
-        retargetedDiff = DIFF_ONE_TARGET;
-
-    return retargetedDiff;
-}
-
-export function retargetAlgorithm2(
+export function retargetAlgorithm(
     previousTarget: BigInt,  // This is the current target (e.g., DIFF_ONE_TARGET for difficulty 1)
     firstTimestamp: BigInt,
     secondTimestamp: BigInt
@@ -603,6 +585,32 @@ export function getHighestValidatedHeader(): HighestValidatedHeader | null {
     return null;
 }
 
+/**
+ * Rounds up the given value to the nearest multiple of 10^(precision).
+ * For example, if value = 123456 and precision = 3, the result is 124000.
+ */
+function roundUpDifficulty(value: BigInt, precision: u32): BigInt {
+  // Compute factor = 10^precision using a loop
+  let factor: BigInt = BigInt.from(1);
+  for (let i: u32 = 0; i < precision; i++) {
+    factor = factor.mul(BigInt.from(10));
+  }
+
+  // Define one using BigInt.from()
+  let one: BigInt = BigInt.from(1);
+
+  // Calculate the numerator: value + factor - one
+  let numerator: BigInt = value.add(factor).sub(one);
+
+  // Perform ceiling division: quotient = (value + factor - one) / factor
+  let quotient: BigInt = numerator.div(factor);
+
+  // Multiply the quotient by factor to get the rounded result
+  let rounded: BigInt = quotient.mul(factor);
+
+  return rounded;
+}
+
 export function passesRetargetProcess(block: Header, lastDifficultyPeriodParams: DifficultyPeriodParams): RetargetAlgorithmResult {
     let difficultyParamsChanged: boolean = false;
 
@@ -610,22 +618,29 @@ export function passesRetargetProcess(block: Header, lastDifficultyPeriodParams:
         if (block.height % RETARGET_PERIOD_BLOCKS === RETARGET_PERIOD_BLOCKS - 1) {
             lastDifficultyPeriodParams.endTimestamp = block.timestamp;
             difficultyParamsChanged = true;
+            debugLog('Valdating block before next retarget period (2016-1 block), timestamp ' + lastDifficultyPeriodParams.endTimestamp.toString())
         }
 
-        if (block.height % RETARGET_PERIOD_BLOCKS === 0) {
-            debugLog('HITTING THIS')
-            let retargetedDiff = retargetAlgorithm2(lastDifficultyPeriodParams.target, lastDifficultyPeriodParams.startTimestamp, lastDifficultyPeriodParams.endTimestamp);
-            debugLog('MY NEW CALC' + retargetedDiff.toString())
+        if (block.height % RETARGET_PERIOD_BLOCKS === 0) {            
+            let retargetedDiff = retargetAlgorithm(lastDifficultyPeriodParams.target, lastDifficultyPeriodParams.startTimestamp, lastDifficultyPeriodParams.endTimestamp);
             lastDifficultyPeriodParams = new DifficultyPeriodParams(retargetedDiff, block.timestamp, BigInt.from(0))
             difficultyParamsChanged = true;
+            debugLog('Validating block at next retarget period (2016 block), timestamp ' + lastDifficultyPeriodParams.startTimestamp.toString() + ' calculated difficulty ' + retargetedDiff.toString());            
         }
     }
-
-    if (block.targetUnformatted.eq(lastDifficultyPeriodParams.target)){
+    
+    let calculatedRounded: BigInt = roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target)
+    if (calculatedRounded.gt(block.targetUnformatted)){
         return new RetargetAlgorithmResult(lastDifficultyPeriodParams, difficultyParamsChanged, true);
     }
 
     return new RetargetAlgorithmResult(lastDifficultyPeriodParams, false, false);
+}
+
+export function roundUpDifficultyToLeftDigits(target: BigInt): BigInt {
+    let precision = target.toString().length - RETARGET_VALIDATION_PRECISION;
+
+    return roundUpDifficulty(target, precision);    
 }
 
 export function debugLog(message: string): void {
@@ -835,9 +850,12 @@ export function processHeaders(processDataString: string): void {
                     throw new Error('Block already added, this error should not occur')
                 }
             } else {
-                // theres a problem.. we should clear the preheaders
-                // clearPreHeaders();
-                debugLog('Block ' + block.height.toString() + ' does NOT pass retarget process|' + ' blocks difficulty: ' + targetToDifficulty(block.targetUnformatted) + ' target of period: ' + targetToDifficulty(lastDifficultyPeriodParams.target));
+                // theres a problem..
+                debugLog('Block ' + block.height.toString() + ' does NOT pass retarget process:')
+                debugLog('Long decimal format | blocks difficulty: ' + block.targetUnformatted.toString() + ' target of period: ' + lastDifficultyPeriodParams.target.toString() + ' target of period rounded: ' + roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target).toString());
+                debugLog('Block explorer format | blocks difficulty: ' + targetToDifficulty(block.targetUnformatted) + ' target of period: ' + targetToDifficulty(lastDifficultyPeriodParams.target) + ' target of period rounded: ' + targetToDifficulty(roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target)));                
+                debugLog('Aborting validation as we only want blocks to be processed in order')
+                break;
             }
         }
     }
