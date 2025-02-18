@@ -8,8 +8,7 @@ export function wrapperExtractTarget(header: string) : string {
     return btcRelay.extractTarget(headerArray).toString();
 }
 
-export function wrapperRetargetAlgorithm(previousTarget: string, firstTimestamp: number, secondTimestamp: number) : string {
-    const prev = BigInt.fromString(previousTarget)
-    const test = btcRelay.retargetAlgorithm(prev, BigInt.from(firstTimestamp), BigInt.from(secondTimestamp));
+export function wrapperRetargetAlgorithm(previousTarget: string, firstTimestamp: string, secondTimestamp: string) : string {
+    const test = btcRelay.retargetAlgorithm(BigInt.fromString(previousTarget), BigInt.fromString(firstTimestamp), BigInt.fromString(secondTimestamp));
     return test.toString();
 }

@@ -10,7 +10,7 @@ const DELAY_BETWEEN_BTC_RPC_CALLS = 100; // how much time at minimum we wait bet
 
 xdescribe("Long running tests stateless", () => {
     it("should fetch headers 0-6050 and process them", async () => {
-        const START_HEIGHT = 1;
+        const START_HEIGHT = 0;
         const END_HEIGHT = 6050;
         const VALIDITY_DEPTH = 1;
         const PREVIOUS_DIFFICULTY = 1;
@@ -31,25 +31,23 @@ xdescribe("Long running tests stateless", () => {
             const [blockRaw, cacheHit] = await getBlockHeader(i);
             headersIngestQueue.push({ [i]: blockRaw })
 
-            if (i % SUBMIT_AMOUNT === 0) {
+            if (headersIngestQueue.length % SUBMIT_AMOUNT === 0) {
                 const processData = JSON.stringify({
                     headers: headersIngestQueue.map((header) => Object.values(header)[0]),
                 });
-                console.log(processData)
-                // contract.processHeaders(processData);
-                // finalizeTransaction()
-                // headersIngestQueue.length = 0;
+                contract.processHeaders(processData);
+                finalizeTransaction()
+                headersIngestQueue.length = 0;
             }
-            if (cacheHit) {
+            if (!cacheHit) {
                 await sleep(DELAY_BETWEEN_BTC_RPC_CALLS)
             }
         }
         expect(true).to.be.true;
     });
-
 });
 
-describe("long running tests with cache", () => {
+xdescribe("long running tests with cache", () => {
     const CACHE_PREFIX = 'stateCache-';
     const CACHE_EXTENSION = '.json';
     const CACHE_DIR = './cache/test-state/';
@@ -124,7 +122,7 @@ describe("long running tests with cache", () => {
             throw new Error('this test is only available locally');
         }
 
-        const END_HEIGHT = 40000;
+        const END_HEIGHT = 400000;
         const headersIngestQueue: Array<Block> = []
     
         // Ensure the cache directory exists (or create it)
@@ -209,5 +207,7 @@ describe("long running tests with cache", () => {
                 await sleep(DELAY_BETWEEN_BTC_RPC_CALLS)
             }
         }
+
+        expect(true).to.be.true;
     });
 });

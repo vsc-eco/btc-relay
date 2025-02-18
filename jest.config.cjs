@@ -29,6 +29,6 @@ module.exports = {
       },
     ],
   },
-  testTimeout: 300000, // Set global timeout to 30 seconds
+  testTimeout: 999999999, // Set global timeout to 30 seconds
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
 };

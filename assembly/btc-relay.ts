@@ -286,12 +286,12 @@ export function bytesToUintLE(uint8Arr: Uint8Array): BigInt {
     let total = BigInt.from(0);
     let base = BigInt.from(1);
     for (let i = 0; i < uint8Arr.length; i++) {
-      // current byte:
-      let val = BigInt.from(uint8Arr[i]);
-      // add (val * base) to total
-      total = total.add(val.mul(base));
-      // multiply base by 256
-      base = base.mul(BigInt.from(256));
+        // current byte:
+        let val = BigInt.from(uint8Arr[i]);
+        // add (val * base) to total
+        total = total.add(val.mul(base));
+        // multiply base by 256
+        base = base.mul(BigInt.from(256));
     }
     return total;
 }
@@ -490,7 +490,7 @@ export function formatBigIntWithScale(value: BigInt, scale: i32): string {
 export function targetToDifficulty(currentTarget: BigInt): string {
     // amount of decimal precision
     let scale = 8;
-    
+
     let scaledResult = DIFF_ONE_TARGET.mul(BigInt.from(10).pow(scale)).div(currentTarget);
 
     return formatBigIntWithScale(scaledResult, scale);
@@ -527,33 +527,33 @@ export function retargetAlgorithm(
     previousTarget: BigInt,  // This is the current target (e.g., DIFF_ONE_TARGET for difficulty 1)
     firstTimestamp: BigInt,
     secondTimestamp: BigInt
-  ): BigInt {
+): BigInt {
     // Define bounds for elapsed time
     const lowerBound: BigInt = RETARGET_PERIOD.div(BigInt.from(4));
     const upperBound: BigInt = RETARGET_PERIOD.mul(BigInt.from(4));
-  
+
     // Calculate elapsed time in seconds
     let elapsedTime: BigInt = secondTimestamp.sub(firstTimestamp);
-  
+
     // Clamp elapsed time within bounds
     if (elapsedTime.lt(lowerBound)) {
-      elapsedTime = lowerBound;
+        elapsedTime = lowerBound;
     }
     if (elapsedTime.gt(upperBound)) {
-      elapsedTime = upperBound;
+        elapsedTime = upperBound;
     }
-  
+
     // Correct calculation:
     // new_target = previousTarget * (actual elapsed time / expected time)
     let retargetedDiff: BigInt = previousTarget.mul(elapsedTime).div(RETARGET_PERIOD);
-  
+
     // Ensure the new target doesn't exceed the maximum target (DIFF_ONE_TARGET)
     if (retargetedDiff.gt(DIFF_ONE_TARGET)) {
-      retargetedDiff = DIFF_ONE_TARGET;
+        retargetedDiff = DIFF_ONE_TARGET;
     }
-  
+
     return retargetedDiff;
-  }
+}
 
 export function convertHeaderToDifficultyPeriodParams(header: string): DifficultyPeriodParams {
     const decodeHex = Arrays.fromHexString(header);
@@ -590,25 +590,25 @@ export function getHighestValidatedHeader(): HighestValidatedHeader | null {
  * For example, if value = 123456 and precision = 3, the result is 124000.
  */
 function roundUpDifficulty(value: BigInt, precision: u32): BigInt {
-  // Compute factor = 10^precision using a loop
-  let factor: BigInt = BigInt.from(1);
-  for (let i: u32 = 0; i < precision; i++) {
-    factor = factor.mul(BigInt.from(10));
-  }
+    // Compute factor = 10^precision using a loop
+    let factor: BigInt = BigInt.from(1);
+    for (let i: u32 = 0; i < precision; i++) {
+        factor = factor.mul(BigInt.from(10));
+    }
 
-  // Define one using BigInt.from()
-  let one: BigInt = BigInt.from(1);
+    // Define one using BigInt.from()
+    let one: BigInt = BigInt.from(1);
 
-  // Calculate the numerator: value + factor - one
-  let numerator: BigInt = value.add(factor).sub(one);
+    // Calculate the numerator: value + factor - one
+    let numerator: BigInt = value.add(factor).sub(one);
 
-  // Perform ceiling division: quotient = (value + factor - one) / factor
-  let quotient: BigInt = numerator.div(factor);
+    // Perform ceiling division: quotient = (value + factor - one) / factor
+    let quotient: BigInt = numerator.div(factor);
 
-  // Multiply the quotient by factor to get the rounded result
-  let rounded: BigInt = quotient.mul(factor);
+    // Multiply the quotient by factor to get the rounded result
+    let rounded: BigInt = quotient.mul(factor);
 
-  return rounded;
+    return rounded;
 }
 
 export function passesRetargetProcess(block: Header, lastDifficultyPeriodParams: DifficultyPeriodParams): RetargetAlgorithmResult {
@@ -621,16 +621,16 @@ export function passesRetargetProcess(block: Header, lastDifficultyPeriodParams:
             debugLog('Valdating block before next retarget period (2016-1 block), timestamp ' + lastDifficultyPeriodParams.endTimestamp.toString())
         }
 
-        if (block.height % RETARGET_PERIOD_BLOCKS === 0) {            
+        if (block.height % RETARGET_PERIOD_BLOCKS === 0) {
             let retargetedDiff = retargetAlgorithm(lastDifficultyPeriodParams.target, lastDifficultyPeriodParams.startTimestamp, lastDifficultyPeriodParams.endTimestamp);
             lastDifficultyPeriodParams = new DifficultyPeriodParams(retargetedDiff, block.timestamp, BigInt.from(0))
             difficultyParamsChanged = true;
-            debugLog('Validating block at next retarget period (2016 block), timestamp ' + lastDifficultyPeriodParams.startTimestamp.toString() + ' calculated difficulty ' + retargetedDiff.toString());            
+            debugLog('Validating block at next retarget period (2016 block), timestamp ' + lastDifficultyPeriodParams.startTimestamp.toString() + ' calculated difficulty ' + retargetedDiff.toString());
         }
     }
-    
+
     let calculatedRounded: BigInt = roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target)
-    if (calculatedRounded.gt(block.targetUnformatted)){
+    if (calculatedRounded.gt(block.targetUnformatted)) {
         return new RetargetAlgorithmResult(lastDifficultyPeriodParams, difficultyParamsChanged, true);
     }
 
@@ -640,7 +640,7 @@ export function passesRetargetProcess(block: Header, lastDifficultyPeriodParams:
 export function roundUpDifficultyToLeftDigits(target: BigInt): BigInt {
     let precision = target.toString().length - RETARGET_VALIDATION_PRECISION;
 
-    return roundUpDifficulty(target, precision);    
+    return roundUpDifficulty(target, precision);
 }
 
 export function debugLog(message: string): void {
@@ -731,7 +731,7 @@ export function processHeaders(processDataString: string): void {
         const headerHash = hash256(decodeHex);
         const target = validateHeaderChain(decodeHex);
         const targetUnformatted = extractTarget(decodeHex);
-        
+
         let prevHeight: i32 = 0;
 
         const prevBlockStr = Arrays.toHexString(prevBlock)
@@ -776,13 +776,18 @@ export function processHeaders(processDataString: string): void {
     let sortedPreheaders: Array<Map<string, Header>> = sortPreheadersByHeight(preheaders);
     const topHeader: Uint8Array = Arrays.fromHexString(sortedPreheaders[sortedPreheaders.length - 1].keys()[0]);
     let blocksToPush: Array<Header> = [];
-    let curDepth: i32 = 1;
+    let curDepth: i32 = 0;
     let prevBlock: Uint8Array | null = null;
 
     debugLog('Verifying the chain of blocks by previous block header');
     while (true) {
         if (!prevBlock) {
             prevBlock = topHeader;
+        }
+
+        if (blocksToPush.length == preheaders.keys().length + 1 - validityDepth) {
+            debugLog('Added all preheaders allowed for specified validity depth')
+            break;
         }
 
         let prevBlockStr = Arrays.toHexString(prevBlock);
@@ -797,11 +802,8 @@ export function processHeaders(processDataString: string): void {
                 curDepth = curDepth + 1;
             }
             prevBlock = currentHeader.prevBlock;
-        } else if (blocksToPush.length == preheaders.keys().length + 1 - validityDepth) {
-            debugLog('Added all preheaders allowed for specified validity depth')
-            break;
         } else {
-            debugLog('Could not find preheader for block ' + curDepth.toString() + '. This message should not occur in normal operation');
+            debugLog('Could not find consecutive preheader for block: ' + prevBlockStr.toString() + ' depth: ' + curDepth.toString() + '. This message should not occur in normal operation');
             break;
         }
     }
@@ -812,10 +814,10 @@ export function processHeaders(processDataString: string): void {
         throw new Error('lastDifficultyPeriodParams.startTimestamp is not set. This error should never happen.');
     }
 
-    let highestHeight = highestValidatedHeader !== null ? highestValidatedHeader.height: 0;
+    let highestHeight = highestValidatedHeader !== null ? highestValidatedHeader.height : 0;
     let highestBlockHeader: string = "";
     debugLog('Verifying the chain of blocks by height and target difficulty');
-    for (let i = blocksToPush.length - 1; i > 0; i--) {
+    for (let i = blocksToPush.length - 1; i >= 0; i--) {
         let block = blocksToPush[i];
         let key = calcKey(block.height);
         debugLog('Processing block ' + block.height.toString());
@@ -834,10 +836,17 @@ export function processHeaders(processDataString: string): void {
                 if (retargetProcessResult.difficultyPeriodParamsChanged) {
                     lastDifficultyPeriodParams = retargetProcessResult.lastDifficultyPeriodParams;
                     setLastDifficultyPeriodParams(lastDifficultyPeriodParams);
-                    debugLog('Difficulty period params changed ' + lastDifficultyPeriodParams.difficultyHumanReadable);
+
+                    if (lastDifficultyPeriodParams.endTimestamp.eq(0)) {
+                        debugLog('Difficulty period params updated at height: ' + block.height.toString() + ' with new difficulty: ' + lastDifficultyPeriodParams.difficultyHumanReadable);
+                        debugLog('Long decimal format (target > block = pass) | target of period rounded: ' + roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target).toString() + ' > blocks difficulty: ' + block.targetUnformatted.toString() + ' | target of period unformatted: ' + lastDifficultyPeriodParams.target.toString());
+                        debugLog('Block explorer format (target < block = pass) | target of period rounded: ' + targetToDifficulty(roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target)) + ' < blocks difficulty: ' + targetToDifficulty(block.targetUnformatted) + ' | target of period unformatted: ' + targetToDifficulty(lastDifficultyPeriodParams.target));
+                    } else {
+                        debugLog('Difficulty period params updated with end block timestamp: ' + lastDifficultyPeriodParams.endTimestamp.toString());
+                    }
                 }
 
-                debugLog('Block ' + block.height.toString() + ' passes retarget process|' + ' blocks difficulty: ' + targetToDifficulty(block.targetUnformatted) + ' target of period: ' + targetToDifficulty(lastDifficultyPeriodParams.target));
+                debugLog('Block ' + block.height.toString() + ' passes retarget process| target of period rounded: ' + targetToDifficulty(roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target)) + ' < blocks difficulty: ' + targetToDifficulty(block.targetUnformatted));
                 highestHeight = block.height;
                 highestBlockHeader = block.raw;
 
@@ -847,13 +856,14 @@ export function processHeaders(processDataString: string): void {
                 if (stateForKey && !stateForKey.has(block.height)) {
                     stateForKey.set(block.height, block.raw);
                 } else {
-                    throw new Error('Block already added, this error should not occur')
+                    // throw new Error('Block already added, this error should not occur')
+                    debugLog('Block already added, this error should not occur')
                 }
             } else {
                 // theres a problem..
                 debugLog('Block ' + block.height.toString() + ' does NOT pass retarget process:')
-                debugLog('Long decimal format | blocks difficulty: ' + block.targetUnformatted.toString() + ' target of period: ' + lastDifficultyPeriodParams.target.toString() + ' target of period rounded: ' + roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target).toString());
-                debugLog('Block explorer format | blocks difficulty: ' + targetToDifficulty(block.targetUnformatted) + ' target of period: ' + targetToDifficulty(lastDifficultyPeriodParams.target) + ' target of period rounded: ' + targetToDifficulty(roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target)));                
+                debugLog('Long decimal format (target > block = pass) | target of period rounded: ' + roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target).toString() + ' > blocks difficulty: ' + block.targetUnformatted.toString() + ' | target of period unformatted: ' + lastDifficultyPeriodParams.target.toString());
+                debugLog('Block explorer format (target < block = pass) | target of period rounded: ' + targetToDifficulty(roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target)) + ' < blocks difficulty: ' + targetToDifficulty(block.targetUnformatted) + ' | target of period unformatted: ' + targetToDifficulty(lastDifficultyPeriodParams.target));
                 debugLog('Aborting validation as we only want blocks to be processed in order')
                 break;
             }
@@ -867,8 +877,8 @@ export function processHeaders(processDataString: string): void {
 
     if (highestHeight > validityDepth) {
         let preHeaderKeys = preheaders.keys();
-    
-        for (let i = 0; i < preHeaderKeys.length; ++i) {        
+
+        for (let i = 0; i < preHeaderKeys.length; ++i) {
             let key = unchecked(preHeaderKeys[i]);
             let value = preheaders.get(key);
             if (highestHeight >= value.height) {
@@ -876,7 +886,7 @@ export function processHeaders(processDataString: string): void {
                 preheaders.delete(unchecked(key));
             }
         }
-    } 
+    }
 
     let headerStateKeys = headersState.keys();
     for (let i = 0; i < headerStateKeys.length; ++i) {

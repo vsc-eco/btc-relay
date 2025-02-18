@@ -13,7 +13,6 @@ const MAX_REQUEST_FAIL_COUNTER = 10; // how often we can fail a btc rpc  request
 const BTC_RPC = 'https://bitcoin-mainnet.public.blastapi.io'
 const ENABLE_INFO_LOGS = true
 
-// Dummy sleep function
 export function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }

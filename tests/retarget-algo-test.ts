@@ -2,7 +2,7 @@ import { assert, expect } from "chai";
 import { contract, reset, setContractImport, stateCache } from "@vsc.eco/contract-testing-utils";
 import { retargetAlgorithmVector } from "@@/test-data/retargetAlgoVector";
 
-xdescribe("unit test retargetAlgorithm", () => {
+describe("unit test retargetAlgorithm", () => {
   it('calculates consensus-correct retargets', () => {
 
     let firstTimestamp;
@@ -20,15 +20,15 @@ xdescribe("unit test retargetAlgorithm", () => {
         retargetAlgorithmVector[i].input[2].hex
       ));
       
-      res = BigInt(contract.wrapperRetargetAlgorithm(previousTarget.toString(), firstTimestamp, secondTimestamp));
+      res = BigInt(contract.wrapperRetargetAlgorithm(previousTarget.toString(), firstTimestamp.toString(), secondTimestamp.toString()));
       assert.strictEqual(res & expectedNewTarget, expectedNewTarget);
 
       secondTimestamp = firstTimestamp + 5 * 2016 * 10 * 60; // longer than 4x
-      res = BigInt(contract.wrapperRetargetAlgorithm(previousTarget.toString(), firstTimestamp, secondTimestamp));
+      res = BigInt(contract.wrapperRetargetAlgorithm(previousTarget.toString(), firstTimestamp.toString(), secondTimestamp.toString()));
       assert.strictEqual(res / BigInt(4) & previousTarget, previousTarget);
 
       secondTimestamp = firstTimestamp + 2016 * 10 * 14; // shorter than 1/4x
-      res = BigInt(contract.wrapperRetargetAlgorithm(previousTarget.toString(), firstTimestamp, secondTimestamp));
+      res = BigInt(contract.wrapperRetargetAlgorithm(previousTarget.toString(), firstTimestamp.toString(), secondTimestamp.toString()));
       assert.strictEqual(res * BigInt(4) & previousTarget, previousTarget);
     }
   });
