@@ -1,7 +1,7 @@
 import { contract, finalizeTransaction, initializationState, reset, stateCache, tmpState } from "@vsc.eco/contract-testing-utils";
 import { BLOCK_ZERO_HEADER_HASH, firstTenBTCBlocks } from "@@/test-data/BTCBlocks";
 import { assert, expect } from "chai";
-import { Block, getBlockHeader, sleep } from "./header-fetcher";
+import { Block, getBlockHeader, sleep } from "../utils/header-fetcher";
 const module = await import("fs");
 const fs = module.promises;
 
@@ -52,7 +52,7 @@ xdescribe("long running tests with cache", () => {
     const CACHE_EXTENSION = '.json';
     const CACHE_DIR = './cache/test-state/';
 
-    async function saveStateCache(stateCache: any, newCacheIndex: number) {        
+    async function saveStateCache(stateCache: any, newCacheIndex: number) {
         // save the current state to a new cache file
         const newCacheFileName = `${CACHE_PREFIX}${newCacheIndex}${CACHE_EXTENSION}`;
         await fs.writeFile(
@@ -63,12 +63,12 @@ xdescribe("long running tests with cache", () => {
 
     function findHeighestConfirmedHeaderKey(stateCache) {
         return Object.keys(Object.fromEntries(stateCache))
-        .filter(key => key.startsWith("headers/")) // Filter keys that start with "headers/"
-        .sort((a, b) => {
-            const numA = parseInt(a.split("/")[1].split("-")[0], 10);
-            const numB = parseInt(b.split("/")[1].split("-")[0], 10);
-            return numB - numA; // Sort descending
-        })[0];
+            .filter(key => key.startsWith("headers/")) // Filter keys that start with "headers/"
+            .sort((a, b) => {
+                const numA = parseInt(a.split("/")[1].split("-")[0], 10);
+                const numB = parseInt(b.split("/")[1].split("-")[0], 10);
+                return numB - numA; // Sort descending
+            })[0];
     }
 
     function findHighestValidatedHeight(stateCache: any) {
@@ -91,15 +91,15 @@ xdescribe("long running tests with cache", () => {
             }
         }
 
-    }    
+    }
 
     function cloneMap<K, V>(currentMap: Map<K, V>, newMap: Map<K, V>): void {
         // Clear all keys from the current map
         currentMap.clear();
-      
+
         // Add all entries from the new map to the current map
         for (const [key, value] of newMap) {
-          currentMap.set(key, value);
+            currentMap.set(key, value);
         }
     }
 
@@ -113,7 +113,7 @@ xdescribe("long running tests with cache", () => {
         cloneMap(tmpStateCache, stateCache);
         reset()
         cloneMap(stateCache, tmpStateCache);
-        tmpStateCache.clear();        
+        tmpStateCache.clear();
     }
 
     it("continue from cache if exists till END_HEIGHT", async () => {
@@ -124,10 +124,10 @@ xdescribe("long running tests with cache", () => {
 
         const END_HEIGHT = 400000;
         const headersIngestQueue: Array<Block> = []
-    
+
         // Ensure the cache directory exists (or create it)
         await fs.mkdir(CACHE_DIR, { recursive: true });
-    
+
         // Read the directory’s contents
         let files = [];
         try {
@@ -135,12 +135,12 @@ xdescribe("long running tests with cache", () => {
         } catch (err) {
             console.error("Error reading cache directory", err);
         }
-    
+
         // Filter to find cache files that match our naming pattern
         const cacheFiles = files.filter(
             file => file.startsWith(CACHE_PREFIX) && file.endsWith(CACHE_EXTENSION)
         );
-    
+
         // Determine the file with the highest number (if any)
         let latestCacheFile = null;
         let newCacheIndex = 1; // default starting index if none exist
@@ -160,7 +160,7 @@ xdescribe("long running tests with cache", () => {
             // For the new cache file, continue with the next number
             newCacheIndex = maxNumber + 1;
         }
-    
+
         if (latestCacheFile) {
             // A cache file exists: read its contents and continue from that state.
             console.log(`Found cache file: ${latestCacheFile}`);
@@ -184,13 +184,13 @@ xdescribe("long running tests with cache", () => {
             await saveStateCache(stateCache, newCacheIndex);
             newCacheIndex++;
         }
-    
+
         const startHeight = findHighestValidatedHeight(stateCache);
-    
+
         for (let i = startHeight; i <= END_HEIGHT; i++) {
             const [blockRaw, cacheHit] = await getBlockHeader(i);
             headersIngestQueue.push({ [i]: blockRaw });
-    
+
             if (headersIngestQueue.length % SUBMIT_AMOUNT === 0) {
                 const processData = JSON.stringify({
                     headers: headersIngestQueue.map((header) => Object.values(header)[0]),
@@ -198,7 +198,7 @@ xdescribe("long running tests with cache", () => {
                 contract.processHeaders(processData);
                 finalizeTransaction();
                 headersIngestQueue.length = 0;
-                
+
                 handleContractStateFinalization(stateCache)
                 await saveStateCache(stateCache, newCacheIndex);
                 newCacheIndex++

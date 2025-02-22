@@ -32,7 +32,7 @@ function getCacheFilePath(height) {
  * If the header exists in the cache, it is returned immediately.
  * Otherwise, it is fetched via fetchBlockRaw, saved into the cache, and then returned.
  */
-export async function getBlockHeader(height): Promise<[header: any, cacheHit :boolean]> {
+export async function getBlockHeader(height): Promise<[header: any, cacheHit: boolean]> {
     const filePath = getCacheFilePath(height);
 
     // Ensure the cache directory exists

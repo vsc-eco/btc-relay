@@ -176,42 +176,47 @@ describe("test processHeaders without existing data", () => {
 // pla: the behavior of the contract is that it will also in some cases include the faulty header
 // but because the blocks are cryptographically related, it is not possible to add any valid headers afterwards
 // the state is basically corrupted
-// describe("test processHeaders faulty headers", () => {
-//   const header0 = BLOCK_ZERO_HEADER_HASH
-//   const header2 = "010000004860eb18bf1b1620e37e9490fc8a427514416fd75159ab86688e9a8300000000d5fdcc541e25de1c7a5addedf24858b8bb665c9f36ef744ee42c316022c90f9bb0bc6649ffff001d08d2bd61"
+describe("test processHeaders faulty headers", () => {
+  const header0 = BLOCK_ZERO_HEADER_HASH
+  const header2 = "010000004860eb18bf1b1620e37e9490fc8a427514416fd75159ab86688e9a8300000000d5fdcc541e25de1c7a5addedf24858b8bb665c9f36ef744ee42c316022c90f9bb0bc6649ffff001d08d2bd61"
 
-//   // pla: header to be manipulated
-//   const header1 = "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299"
-//   const faultyHeaders = []
+  // pla: header to be manipulated
+  const header1 = "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299"
+  const faultyHeaders = []
 
-//   for (let i = 0; i < 160; i += 10) {
-//     const adjustedFaultyHeader = header1.slice(0, i) + "AAAAAAAAAA" + header1.slice(i + 10)
+  for (let i = 0; i < 160; i += 10) {
+    const adjustedFaultyHeader = header1.slice(0, i) + "AAAAAAAAAA" + header1.slice(i + 10)
 
-//     faultyHeaders.push(adjustedFaultyHeader)
-//   }
+    faultyHeaders.push(adjustedFaultyHeader)
+  }
 
-//   for (let i = 0; i < 16; i++) {
-//     const faultyHeader = faultyHeaders[i];
+  for (let i = 0; i < 16; i++) {
+    const faultyHeader = faultyHeaders[i];
 
-//     if (i == 15) {
-//       // pla: changing the raw data at this index messes with a power operation that tries to power to a negative number
-//       // something that is not supported in the big int library
-//       // 'Error: BigInt does not support negative exponentiation'
-//       it(`should throw an error`, () => {
-//         expect(() => executeProcessHeaders(contract, [header1, faultyHeader, header2])).to.throw(Error);
-//       });
-//     } else {
-//       it(`should only process the good headers`, () => {
-//         executeProcessHeaders(contract, [header0, faultyHeader, header2], 0, 0, 1);
-//         const createdCache = stateCache.get("headers/0-100");
+    if (i == 15) {
+      // pla: changing the raw data at this index messes with a power operation that tries to power to a negative number
+      // something that is not supported in the big int library
+      // 'Error: BigInt does not support negative exponentiation'
+      it(`should throw an error`, () => {
+        expect(() => executeProcessHeaders(contract, [header1, faultyHeader, header2])).to.throw(Error);
+      });
+    } else {
+      it(`should only process the good headers`, () => {
+        try {
+          executeProcessHeaders(contract, [header0, faultyHeader, header2], 0, "0", 1);
+        } catch (e) {
+          // pla: the error is expected, because the faulty header is not valid
+          expect(e.message).to.contain("Header does not meet its own difficulty target");
+        }
+        const createdCache = stateCache.get("headers/0-100");
 
-//         // expect only header0 to be included, corrupted headers in the first half of the raw data will not be processed
-//         expect(Object.keys(createdCache).length === 1).to.be.true;
-//         expect(createdCache["0"]).to.be.string(BLOCK_ZERO_HEADER_HASH);
-//       });
-//     }
-//   }
-// });
+        // expect only header0 to be included, corrupted headers in the first half of the raw data will not be processed
+        expect(Object.keys(createdCache).length === 1).to.be.true;
+        expect(createdCache["0"]).to.be.string(BLOCK_ZERO_HEADER_HASH);
+      });
+    }
+  }
+});
 
 describe("test processHeaders with many headers", () => {
   it("should process and verify BTC headers", () => {
