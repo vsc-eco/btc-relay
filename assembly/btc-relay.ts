@@ -838,7 +838,7 @@ export function processHeaders(processDataString: string): void {
                     setLastDifficultyPeriodParams(lastDifficultyPeriodParams);
 
                     if (lastDifficultyPeriodParams.endTimestamp.eq(0)) {
-                        debugLog('Difficulty period params updated at height: ' + block.height.toString() + ' with new difficulty: ' + lastDifficultyPeriodParams.target);
+                        debugLog('Difficulty period params updated at height: ' + block.height.toString());
                         debugLog('Long decimal format (target > block = pass) | target of period rounded: ' + roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target).toString() + ' > blocks difficulty: ' + block.targetUnformatted.toString() + ' | target of period unformatted: ' + lastDifficultyPeriodParams.target.toString());
                         debugLog('Block explorer format (target < block = pass) | target of period rounded: ' + targetToDifficulty(roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target)) + ' < blocks difficulty: ' + targetToDifficulty(block.targetUnformatted) + ' | target of period unformatted: ' + targetToDifficulty(lastDifficultyPeriodParams.target));
                     } else {
