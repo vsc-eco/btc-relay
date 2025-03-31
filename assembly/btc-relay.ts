@@ -7,20 +7,21 @@ import { Value } from 'assemblyscript-json/assembly/JSON';
 const MAX_PREHEADER_SIZE = 1200;
 
 const DIFF_ONE_TARGET = BigInt.fromString('0x00000000FFFF0000000000000000000000000000000000000000000000000000', 16);
-
 const FIRST_DIFFICULTY_PERIOD_HEADER = "0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c";
 
+// default validity depth is 6 blocks, this means we skip the last 6 blocks from the end of the (processed) chain, because we cant assume that they are final yet
 const DEFAULT_VALIDITY_DEPTH = 6;
-
-const RETARGET_PERIOD = BigInt.from(1209600);
-
-const RETARGET_PERIOD_BLOCKS = 2016;
 
 // allow retarget calculation to be slightly off by truncating digits
 const RETARGET_VALIDATION_PRECISION: u32 = 4; // e.g. round up to the nearest 10^3
+// retarget algorithm period in seconds (2 weeks)
+const RETARGET_PERIOD = BigInt.from(1209600);
+// retarget algorithm is executed every x blocks
+const RETARGET_PERIOD_BLOCKS = 2016;
 
 const headersState: Map<string, Map<i64, string>> = new Map<string, Map<i64, string>>();
 
+// allows to log to file for debugging purposes
 const debugMode = true;
 
 class DifficultyPeriodParams {
@@ -222,6 +223,7 @@ export function getPreheaders(): Map<string, Header> {
     return preheaders;
 }
 
+// this function is used to save a string to the db
 export function saveString(key: string, value: string): void {
     let encoder = new JSONEncoder();
     encoder.pushObject(null);
@@ -239,6 +241,7 @@ export function retrieveString(key: string): string {
     return parsed.getString(key)!.valueOf();
 }
 
+// fetch contract input headers and parse them
 export function parseProcessData(headerString: string): ProcessData {
     const parsed = <JSON.Obj>JSON.parse(headerString);
 
@@ -249,6 +252,7 @@ export function parseProcessData(headerString: string): ProcessData {
     return new ProcessData(headers);
 }
 
+// fetch contract initialization data and parse it
 export function parseInitData(initDataString: string): InitData {
     const parsed = <JSON.Obj>JSON.parse(initDataString);
     const initData = new InitData(
@@ -543,7 +547,6 @@ export function retargetAlgorithm(
         elapsedTime = upperBound;
     }
 
-    // Correct calculation:
     // new_target = previousTarget * (actual elapsed time / expected time)
     let retargetedDiff: BigInt = previousTarget.mul(elapsedTime).div(RETARGET_PERIOD);
 
@@ -611,16 +614,19 @@ function roundUpDifficulty(value: BigInt, precision: u32): BigInt {
     return rounded;
 }
 
+// check if a block passes the retarget process
 export function passesRetargetProcess(block: Header, lastDifficultyPeriodParams: DifficultyPeriodParams): RetargetAlgorithmResult {
     let difficultyParamsChanged: boolean = false;
 
     if (block.height !== 0) {
+        // store block timestamp of the block one before the retarget height (2016-1 block), required for retarget algorithm
         if (block.height % RETARGET_PERIOD_BLOCKS === RETARGET_PERIOD_BLOCKS - 1) {
             lastDifficultyPeriodParams.endTimestamp = block.timestamp;
             difficultyParamsChanged = true;
-            debugLog('Valdating block before next retarget period (2016-1 block), timestamp ' + lastDifficultyPeriodParams.endTimestamp.toString())
+            debugLog('Validating block before next retarget period (2016-1 block), timestamp ' + lastDifficultyPeriodParams.endTimestamp.toString())
         }
 
+        // execute the retarget algorithm at the retarget height
         if (block.height % RETARGET_PERIOD_BLOCKS === 0) {
             let retargetedDiff = retargetAlgorithm(lastDifficultyPeriodParams.target, lastDifficultyPeriodParams.startTimestamp, lastDifficultyPeriodParams.endTimestamp);
             lastDifficultyPeriodParams = new DifficultyPeriodParams(retargetedDiff, block.timestamp, BigInt.from(0))
@@ -629,7 +635,9 @@ export function passesRetargetProcess(block: Header, lastDifficultyPeriodParams:
         }
     }
 
-    let calculatedRounded: BigInt = roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target)
+    // as the calculation of the retarget algorithm is not exact (for an unidentified reason), we round up the target
+    // and check the result against the block target
+    let calculatedRounded: BigInt = roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target);
     if (calculatedRounded.gt(block.targetUnformatted)) {
         return new RetargetAlgorithmResult(lastDifficultyPeriodParams, difficultyParamsChanged, true);
     }
@@ -649,12 +657,14 @@ export function debugLog(message: string): void {
     }
 }
 
-// pla: processHeaders only works when you start at block zero, with this function you can start at any arbitrary height, 
-// there probably more optimal ways to do this without initializing the preheaders with a block, but this should be sufficient for now
+// this function allows the contract to be started from a specific block height
+// this is useful for bootstrapping relay's without syncing the whole btc chain
 export function initializeAtSpecificBlock(initDataString: string): void {
     const initData = parseInitData(initDataString);
 
+    // only allow initialization at a specific block if the contract has not been initialized before
     if (db.getObject(`pre-headers/main`) === "null") {
+        // parse initialization data
         getValidityDepth(initData.validityDepth);
         let lastDifficultyPeriodRetargetBlock: string;
         if (initData.lastDifficultyPeriodRetargetBlock !== null) {
@@ -668,16 +678,15 @@ export function initializeAtSpecificBlock(initDataString: string): void {
         }
         setLastDifficultyPeriodParams(convertHeaderToDifficultyPeriodParams(lastDifficultyPeriodRetargetBlock))
 
+        // extract information from the header
         const decodeHex = Arrays.fromHexString(initData.startHeader);
         const prevBlockLE = extractPrevBlockLE(decodeHex);
         const prevBlock = reverseEndianness(prevBlockLE);
         const timestamp = extractTimestamp(decodeHex);
-        // pla: maybe merkleRoot does not need to be reversed, came to that conclusion because the library we use for validating proofs for example takes it in the other way
         const merkleRoot = reverseEndianness(extractMerkleRootLE(decodeHex));
         const headerHash = hash256(decodeHex);
         const target = validateHeaderChain(decodeHex);
         const targetUnformatted = extractTarget(decodeHex);
-
         const decodedHeader = new Header(
             prevBlock,
             timestamp,
@@ -688,15 +697,16 @@ export function initializeAtSpecificBlock(initDataString: string): void {
             initData.startHeader
         );
 
+        // store the highest validated header to the headers cache (pre-headers) to "initialize" the contract
         const preheaders: Map<string, Header> = new Map<string, Header>();
         preheaders.set(Arrays.toHexString(reverseEndianness(headerHash)), decodedHeader);
         db.setObject(`pre-headers/main`, serializePreHeaders(preheaders));
 
+        // confirm the highest validated header in the permanent header store (headers/X-Y)
         let key = calcKey(decodedHeader.height);
         let stateForKey = new Map<i64, string>();
         stateForKey.set(decodedHeader.height, initData.startHeader);
         headersState.set(key, stateForKey);
-
         db.setObject(`headers/${key}`, serializeHeaderState(stateForKey));
     }
 }
@@ -705,12 +715,13 @@ export function clearPreHeaders(): void {
     db.setObject(`pre-headers/main`, "{}");
 }
 
+// main entrypoint of the relay contract
 export function processHeaders(processDataString: string): void {
     const processData = parseProcessData(processDataString);
     const headers: Array<string> = processData.headers;
     const preheaders = getPreheaders();
 
-    // if processData and preheaders in sum are more than X, we should clear the preheaders
+    // if processData (contract header input) and preheaders (contract header cache) in sum are more than X, we should clear the preheaders
     if (headers.length + preheaders.size > MAX_PREHEADER_SIZE) {
         debugLog('Too many headers in memory. Preheaders need to be cleared.');
         throw new Error('Too many headers in memory, please clear preheaders');
@@ -719,6 +730,7 @@ export function processHeaders(processDataString: string): void {
     const highestValidatedHeader = getHighestValidatedHeader();
     const validityDepth = getValidityDepth(DEFAULT_VALIDITY_DEPTH);
 
+    // process preheaders and add them to the preheaders cache if they form a valid chain
     for (let i = 0; i < headers.length; ++i) {
         debugLog('Processing preheader index: ' + i.toString());
         let rawBH = headers[i];
@@ -726,17 +738,18 @@ export function processHeaders(processDataString: string): void {
         const prevBlockLE = extractPrevBlockLE(decodeHex);
         const prevBlock = reverseEndianness(prevBlockLE);
         const timestamp = extractTimestamp(decodeHex);
-        // pla: maybe merkleRoot does not need to be reversed, come to the conclusion because the library we use for validating proofs for example takes it in the other way
         const merkleRoot = reverseEndianness(extractMerkleRootLE(decodeHex));
         const headerHash = hash256(decodeHex);
         const target = validateHeaderChain(decodeHex);
         const targetUnformatted = extractTarget(decodeHex);
 
         let prevHeight: i32 = 0;
-
         const prevBlockStr = Arrays.toHexString(prevBlock)
         let continueLoop: bool = true;
-
+        // only add header to preheaders if 
+        // - the previous block is in the preheaders cache 
+        // - header is the initial block
+        // - highest validated header is set and is the previous block (this is useful for when the contract has its preheaders cache reset)
         if (prevBlockStr === '0000000000000000000000000000000000000000000000000000000000000000') {
             prevHeight = -1;
             setLastDifficultyPeriodParams(new DifficultyPeriodParams(targetUnformatted, timestamp));
@@ -773,12 +786,12 @@ export function processHeaders(processDataString: string): void {
         }
     }
 
+    // filter out blocks to push by validity depth
     let sortedPreheaders: Array<Map<string, Header>> = sortPreheadersByHeight(preheaders);
     const topHeader: Uint8Array = Arrays.fromHexString(sortedPreheaders[sortedPreheaders.length - 1].keys()[0]);
     let blocksToPush: Array<Header> = [];
     let curDepth: i32 = 0;
     let prevBlock: Uint8Array | null = null;
-
     debugLog('Verifying the chain of blocks by previous block header');
     while (true) {
         if (!prevBlock) {
@@ -808,12 +821,14 @@ export function processHeaders(processDataString: string): void {
         }
     }
 
+    // if we have no blocks to push, we are done
     let lastDifficultyPeriodParams: DifficultyPeriodParams = getLastDifficultyPeriodParams();
     if (lastDifficultyPeriodParams.startTimestamp.eq(0)) {
         debugLog('lastDifficultyPeriodParams.startTimestamp is not set. This error should never happen.');
         throw new Error('lastDifficultyPeriodParams.startTimestamp is not set. This error should never happen.');
     }
 
+    // check chain of blocks and verify by height and target difficulty
     let highestHeight = highestValidatedHeader !== null ? highestValidatedHeader.height : 0;
     let highestBlockHeader: string = "";
     debugLog('Verifying the chain of blocks by height and target difficulty');
@@ -829,7 +844,9 @@ export function processHeaders(processDataString: string): void {
             headersState.set(key, pulledHeaders);
         }
 
+        // check if block height is higher than the highest validated block
         if (highestHeight < block.height) {
+            // check if block passes retarget process
             let retargetProcessResult = passesRetargetProcess(block, lastDifficultyPeriodParams);
 
             if (retargetProcessResult.blockPasses) {
@@ -845,18 +862,15 @@ export function processHeaders(processDataString: string): void {
                         debugLog('Difficulty period params updated with end block timestamp: ' + lastDifficultyPeriodParams.endTimestamp.toString());
                     }
                 }
-
                 debugLog('Block ' + block.height.toString() + ' passes retarget process| target of period rounded: ' + targetToDifficulty(roundUpDifficultyToLeftDigits(lastDifficultyPeriodParams.target)) + ' < blocks difficulty: ' + targetToDifficulty(block.targetUnformatted));
                 highestHeight = block.height;
                 highestBlockHeader = block.raw;
 
                 // Add validated header if retarget passes
                 let stateForKey = headersState.get(key);
-
                 if (stateForKey && !stateForKey.has(block.height)) {
                     stateForKey.set(block.height, block.raw);
                 } else {
-                    // throw new Error('Block already added, this error should not occur')
                     debugLog('Block already added, this error should not occur')
                 }
             } else {
@@ -870,14 +884,15 @@ export function processHeaders(processDataString: string): void {
         }
     }
 
+    // check if we have a new highest validated header
     if (highestBlockHeader !== "") {
         debugLog('New highest validated block found| height: ' + highestHeight.toString() + ' header: ' + highestBlockHeader);
         setHighestValidatedHeader(highestHeight, highestBlockHeader);
     }
 
+    // remove preheaders that are under the validity depth as we processed them
     if (highestHeight > validityDepth) {
         let preHeaderKeys = preheaders.keys();
-
         for (let i = 0; i < preHeaderKeys.length; ++i) {
             let key = unchecked(preHeaderKeys[i]);
             let value = preheaders.get(key);
@@ -888,6 +903,7 @@ export function processHeaders(processDataString: string): void {
         }
     }
 
+    // store the confirmed headers in the db
     let headerStateKeys = headersState.keys();
     for (let i = 0; i < headerStateKeys.length; ++i) {
         let key = unchecked(headerStateKeys[i]);
@@ -898,6 +914,8 @@ export function processHeaders(processDataString: string): void {
             db.setObject(`headers/${key}`, serializedHeaderState);
         }
     }
+
+    // store the preheaders cache in the db
     db.setObject(`pre-headers/main`, serializePreHeaders(preheaders));
     debugLog('----------------------- Finished execution -----------------------');
 }

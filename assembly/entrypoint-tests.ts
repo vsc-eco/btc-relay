@@ -3,6 +3,8 @@ import * as btcRelay from './btc-relay'
 import { BigInt } from "as-bigint/assembly"
 export * from './btc-relay'
 
+// These functions allow us to unit test the underlying functions
+
 export function wrapperExtractTarget(header: string) : string {
     const headerArray = Arrays.fromHexString(header)
     return btcRelay.extractTarget(headerArray).toString();
