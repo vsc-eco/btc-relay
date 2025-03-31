@@ -645,26 +645,37 @@ export function passesRetargetProcess(block: Header, lastDifficultyPeriodParams:
     return new RetargetAlgorithmResult(lastDifficultyPeriodParams, false, false);
 }
 
+/**
+ * Rounds up the target difficulty maintaining only the significant digits based on RETARGET_VALIDATION_PRECISION.
+ * This helps normalize difficulty comparisons despite calculation variations.
+ */
 export function roundUpDifficultyToLeftDigits(target: BigInt): BigInt {
     let precision = target.toString().length - RETARGET_VALIDATION_PRECISION;
 
     return roundUpDifficulty(target, precision);
 }
 
+/**
+ * Logs debug messages to the file if debug mode is enabled.
+ * Used throughout the contract for tracking execution flow and state changes.
+ */
 export function debugLog(message: string): void {
     if (debugMode) {
         console.logToFile(message);
     }
 }
 
-// this function allows the contract to be started from a specific block height
-// this is useful for bootstrapping relay's without syncing the whole btc chain
+/**
+ * Initializes the contract at a specific block height instead of genesis.
+ * This function enables bootstrapping relays without syncing the entire Bitcoin chain.
+ * It validates and stores the initial block and difficulty parameters.
+ */
 export function initializeAtSpecificBlock(initDataString: string): void {
     const initData = parseInitData(initDataString);
 
-    // only allow initialization at a specific block if the contract has not been initialized before
+    // Only allow initialization at a specific block if the contract has not been initialized before
     if (db.getObject(`pre-headers/main`) === "null") {
-        // parse initialization data
+        // Parse and store initialization data including validity depth settings
         getValidityDepth(initData.validityDepth);
         let lastDifficultyPeriodRetargetBlock: string;
         if (initData.lastDifficultyPeriodRetargetBlock !== null) {
@@ -678,7 +689,7 @@ export function initializeAtSpecificBlock(initDataString: string): void {
         }
         setLastDifficultyPeriodParams(convertHeaderToDifficultyPeriodParams(lastDifficultyPeriodRetargetBlock))
 
-        // extract information from the header
+        // Extract and validate information from the provided header
         const decodeHex = Arrays.fromHexString(initData.startHeader);
         const prevBlockLE = extractPrevBlockLE(decodeHex);
         const prevBlock = reverseEndianness(prevBlockLE);
@@ -697,12 +708,12 @@ export function initializeAtSpecificBlock(initDataString: string): void {
             initData.startHeader
         );
 
-        // store the highest validated header to the headers cache (pre-headers) to "initialize" the contract
+        // Store the highest validated header to the headers cache (pre-headers) to "initialize" the contract
         const preheaders: Map<string, Header> = new Map<string, Header>();
         preheaders.set(Arrays.toHexString(reverseEndianness(headerHash)), decodedHeader);
         db.setObject(`pre-headers/main`, serializePreHeaders(preheaders));
 
-        // confirm the highest validated header in the permanent header store (headers/X-Y)
+        // Confirm the highest validated header in the permanent header store (headers/X-Y)
         let key = calcKey(decodedHeader.height);
         let stateForKey = new Map<i64, string>();
         stateForKey.set(decodedHeader.height, initData.startHeader);
